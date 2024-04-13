@@ -1,17 +1,183 @@
-fn main() -> Result<(), anyhow::Error> {
-    println!("Hello, world!");
-    let mut rc = piet_svg::RenderContext::new(piet::kurbo::Size {
-        width: 200.0,
-        height: 200.0,
-    });
-    let inputs = std::fs::read_to_string("inputs.json")?;
-    let inputs = serde_json::from_str(&inputs)?;
-    draw(&mut rc, &inputs).expect("Succeeded in drawing");
-    let file = std::fs::File::create("test.svg").expect("OK");
+use eframe::App;
+use eframe::CreationContext;
+use egui::Color32;
+use egui::Style;
+use egui_snarl::ui::SnarlStyle;
+use egui_snarl::ui::SnarlViewer;
+use egui_snarl::Snarl;
 
-    rc.write(file);
+mod nodes;
 
-    Ok(())
+const NUMBER_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 255, 0);
+
+struct NodeGraphViewer;
+
+impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
+    fn title(&mut self, node: &nodes::Nodes) -> String {
+        match node {
+            nodes::Nodes::ConstantValueNode(_) => "Constant".to_string(),
+            nodes::Nodes::Sink(_) => "Sink".to_string(),
+        }
+    }
+
+    fn outputs(&mut self, node: &nodes::Nodes) -> usize {
+        match node {
+            nodes::Nodes::ConstantValueNode(_) => 1,
+            nodes::Nodes::Sink(_) => 0,
+        }
+    }
+
+    fn inputs(&mut self, node: &nodes::Nodes) -> usize {
+        match node {
+            nodes::Nodes::ConstantValueNode(_) => 0,
+            nodes::Nodes::Sink(_) => 1,
+        }
+    }
+
+    fn show_input(
+        &mut self,
+        pin: &egui_snarl::InPin,
+        ui: &mut egui::Ui,
+        scale: f32,
+        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
+    ) -> egui_snarl::ui::PinInfo {
+        match snarl[pin.id.node] {
+            nodes::Nodes::ConstantValueNode(_) => unreachable!(),
+            nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, &snarl),
+        }
+    }
+
+    fn show_output(
+        &mut self,
+        pin: &egui_snarl::OutPin,
+        ui: &mut egui::Ui,
+        scale: f32,
+        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
+    ) -> egui_snarl::ui::PinInfo {
+        match snarl[pin.id.node] {
+            nodes::Nodes::ConstantValueNode(ref mut node) => node.show_output(ui),
+            nodes::Nodes::Sink(_) => unreachable!(),
+        }
+    }
+
+    fn input_color(
+        &mut self,
+        pin: &egui_snarl::InPin,
+        style: &Style,
+        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
+    ) -> Color32 {
+        NUMBER_COLOR
+    }
+
+    fn output_color(
+        &mut self,
+        pin: &egui_snarl::OutPin,
+        style: &Style,
+        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
+    ) -> Color32 {
+        NUMBER_COLOR
+    }
+
+    fn graph_menu(
+        &mut self,
+        pos: egui::Pos2,
+        ui: &mut egui::Ui,
+        _scale: f32,
+        snarl: &mut Snarl<nodes::Nodes>,
+    ) {
+        ui.label("Add node");
+        if ui.button("Constant").clicked() {
+            snarl.insert_node(pos, nodes::Nodes::ConstantValueNode(nodes::constant_value::ConstantValueNode::default()));
+            ui.close_menu();
+        }
+        if ui.button("Sink").clicked() {
+            snarl.insert_node(pos, nodes::Nodes::Sink(nodes::sink::SinkNode));
+            ui.close_menu();
+        }
+    }
+}
+
+pub struct NodeGraphApp {
+    snarl: Snarl<nodes::Nodes>,
+    style: SnarlStyle,
+}
+
+impl NodeGraphApp {
+    pub fn new(cx: &CreationContext) -> Self {
+        let snarl = match cx.storage {
+            None => Snarl::new(),
+            Some(storage) => {
+                let snarl = storage
+                    .get_string("snarl")
+                    .and_then(|snarl| serde_json::from_str(&snarl).ok())
+                    .unwrap_or_else(Snarl::new);
+                snarl
+            }
+        };
+
+        let style = match cx.storage {
+            None => SnarlStyle::new(),
+            Some(storage) => {
+                let style = storage
+                    .get_string("style")
+                    .and_then(|style| serde_json::from_str(&style).ok())
+                    .unwrap_or_else(SnarlStyle::new);
+                style
+            }
+        };
+
+        NodeGraphApp { snarl, style }
+    }
+}
+
+impl App for NodeGraphApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.snarl.show(
+                &mut NodeGraphViewer,
+                &self.style,
+                egui::Id::new("snarl"),
+                ui,
+            );
+        });
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        let snarl = serde_json::to_string(&self.snarl).unwrap();
+        storage.set_string("snarl", snarl);
+
+        let style = serde_json::to_string(&self.style).unwrap();
+        storage.set_string("style", style);
+    }
+}
+
+fn main() -> eframe::Result<()> {
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([400.0, 300.0])
+            .with_min_inner_size([300.0, 220.0]),
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "recoded",
+        native_options,
+        Box::new(|cx| Box::new(NodeGraphApp::new(cx))),
+    )
+
+    // println!("Hello, world!");
+    // let mut rc = piet_svg::RenderContext::new(piet::kurbo::Size {
+    //     width: 200.0,
+    //     height: 200.0,
+    // });
+    // let inputs = std::fs::read_to_string("inputs.json")?;
+    // let inputs = serde_json::from_str(&inputs)?;
+    // draw(&mut rc, &inputs).expect("Succeeded in drawing");
+    // let file = std::fs::File::create("test.svg").expect("OK");
+
+    // rc.write(file);
+
+    // Ok(())
 }
 
 fn draw(rc: &mut impl piet::RenderContext, input: &GraphInputs) -> Result<(), piet::Error> {
