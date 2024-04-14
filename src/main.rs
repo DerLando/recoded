@@ -5,33 +5,27 @@ use egui::Style;
 use egui_snarl::ui::SnarlStyle;
 use egui_snarl::ui::SnarlViewer;
 use egui_snarl::Snarl;
+use nodes::InputNode;
+use nodes::OutputNode;
 
 mod nodes;
 
 const NUMBER_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 255, 0);
+const UNCONNECTED_COLOR: egui::Color32 = egui::Color32::from_rgb(50, 50, 50);
 
 struct NodeGraphViewer;
 
 impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
     fn title(&mut self, node: &nodes::Nodes) -> String {
-        match node {
-            nodes::Nodes::ConstantValueNode(_) => "Constant".to_string(),
-            nodes::Nodes::Sink(_) => "Sink".to_string(),
-        }
+        node.title()
     }
 
     fn outputs(&mut self, node: &nodes::Nodes) -> usize {
-        match node {
-            nodes::Nodes::ConstantValueNode(_) => 1,
-            nodes::Nodes::Sink(_) => 0,
-        }
+        node.outputs()
     }
 
     fn inputs(&mut self, node: &nodes::Nodes) -> usize {
-        match node {
-            nodes::Nodes::ConstantValueNode(_) => 0,
-            nodes::Nodes::Sink(_) => 1,
-        }
+        node.inputs()
     }
 
     fn show_input(
@@ -41,9 +35,10 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         scale: f32,
         snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
-        match snarl[pin.id.node] {
+        match &mut snarl[pin.id.node] {
             nodes::Nodes::ConstantValueNode(_) => unreachable!(),
-            nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, &snarl),
+            nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, scale, &snarl),
+            nodes::Nodes::Range(node) => nodes::range::RangeNode::show_input(pin, ui, scale, snarl), // TODO: How can we hand down snarl properly here? since the node needs to be mut, we must also mutably borrow the snarl to get that reference, so I guess the signature of the InputNode trait should include a mutable reference there, too
         }
     }
 
@@ -54,9 +49,10 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         scale: f32,
         snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
-        match snarl[pin.id.node] {
+        match &mut snarl[pin.id.node] {
             nodes::Nodes::ConstantValueNode(ref mut node) => node.show_output(ui),
             nodes::Nodes::Sink(_) => unreachable!(),
+            nodes::Nodes::Range(_) => nodes::range::RangeNode::show_output(pin, ui, scale, snarl),
         }
     }
 
@@ -92,6 +88,10 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         }
         if ui.button("Sink").clicked() {
             snarl.insert_node(pos, nodes::Nodes::Sink(nodes::sink::SinkNode));
+            ui.close_menu();
+        }
+        if ui.button("Range").clicked() {
+            snarl.insert_node(pos, nodes::Nodes::Range(nodes::range::RangeNode::default()));
             ui.close_menu();
         }
     }
