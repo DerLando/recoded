@@ -49,6 +49,10 @@ pub fn show_input(pin: &InPin, ui: &mut Ui, scale: f32, snarl: &Snarl<Nodes>) ->
                     });
                 PinInfo::square().with_fill(crate::NUMBER_COLOR)
             }
+            Nodes::Point(node) => {
+                ui.label(format!("{:?}", node.point_out()));
+                PinInfo::circle().with_fill(crate::POINT_COLOR)
+            }
             _ => unreachable!(),
         },
         _ => unreachable!(),

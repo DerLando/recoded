@@ -11,6 +11,7 @@ use nodes::OutputNode;
 mod nodes;
 
 const NUMBER_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 255, 0);
+const POINT_COLOR: egui::Color32 = egui::Color32::from_rgb(0, 255, 255);
 const UNCONNECTED_COLOR: egui::Color32 = egui::Color32::from_rgb(50, 50, 50);
 
 struct NodeGraphViewer;
@@ -38,7 +39,8 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         match &mut snarl[pin.id.node] {
             nodes::Nodes::ConstantValueNode(_) => unreachable!(),
             nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, scale, &snarl),
-            nodes::Nodes::Range(node) => nodes::range::RangeNode::show_input(pin, ui, scale, snarl), // TODO: How can we hand down snarl properly here? since the node needs to be mut, we must also mutably borrow the snarl to get that reference, so I guess the signature of the InputNode trait should include a mutable reference there, too
+            nodes::Nodes::Range(_) => nodes::range::RangeNode::show_input(pin, ui, scale, snarl),
+            nodes::Nodes::Point(_) => nodes::point::PointNode::show_input(pin, ui, scale, snarl),
         }
     }
 
@@ -53,6 +55,7 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             nodes::Nodes::ConstantValueNode(ref mut node) => node.show_output(ui),
             nodes::Nodes::Sink(_) => unreachable!(),
             nodes::Nodes::Range(_) => nodes::range::RangeNode::show_output(pin, ui, scale, snarl),
+            nodes::Nodes::Point(_) => nodes::point::PointNode::show_output(pin, ui, scale, snarl),
         }
     }
 
@@ -92,6 +95,10 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         }
         if ui.button("Range").clicked() {
             snarl.insert_node(pos, nodes::Nodes::Range(nodes::range::RangeNode::default()));
+            ui.close_menu();
+        }
+        if ui.button("Point").clicked() {
+            snarl.insert_node(pos, nodes::Nodes::Point(nodes::point::PointNode::default()));
             ui.close_menu();
         }
     }
