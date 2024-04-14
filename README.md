@@ -46,5 +46,6 @@ Basically nothing is implemented at the moment, so the roadmap is long. But I do
 
 `recoded` in it's current stage would **not** be possible without these awesome projects:
 
+- [piet](https://github.com/linebender/piet)
 - [egui](https://github.com/emilk/egui) and [eframe](https://github.com/emilk/egui/tree/master/crates/eframe)
 - [egui-snarl](https://github.com/zakarumych/egui-snarl/)
