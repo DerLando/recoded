@@ -2,7 +2,7 @@
 
 A visual programming environment for creative coding.
 
-[recoded UI](resources/UI_current.png)
+![recoded UI](resources/UI_current.png)
 
 ## Disclaimer
 
