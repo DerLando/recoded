@@ -1,5 +1,7 @@
 use egui_snarl::ui::PinInfo;
 
+use crate::shapes::Shapes;
+
 #[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
 pub struct CircleNode {
     circle: piet::kurbo::Circle,
@@ -14,6 +16,9 @@ impl CircleNode {
     }
     pub fn circle_out(&self) -> &piet::kurbo::Circle {
         &self.circle
+    }
+    pub fn shape_out(&self) -> Shapes {
+        Shapes::Circle(self.circle)
     }
 }
 
@@ -52,10 +57,10 @@ impl super::InputNode<super::Nodes> for CircleNode {
     ) -> egui_snarl::ui::PinInfo {
         match pin.id.input {
             0 => super::show_point_input("Center", pin, ui, scale, snarl, |id, snarl| {
-                super::get_node_mut::<Self>(snarl, id).center_mut()
+                super::get_node_mut::<Self>(snarl, id.node).center_mut()
             }),
             1 => super::show_number_input("Radius", pin, ui, scale, snarl, |id, snarl| {
-                super::get_node_mut::<Self>(snarl, id).radius_mut()
+                super::get_node_mut::<Self>(snarl, id.node).radius_mut()
             }),
             _ => unreachable!(),
         }

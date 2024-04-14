@@ -10,6 +10,7 @@ anyhow = "1.0.82"
 eframe = { version = "0.26", features = ["serde", "persistence"] }
 egui = { version = "0.26", features = ["serde", "persistence"] }
 egui-snarl = { version = "0.3.0", features = ["serde"] }
+egui_extras = { version = "0.26", features = ["image", "svg", "all_loaders"] }
 piet = { version = "0.6.2", features = ["serde"] }
 piet-svg = "0.6.2"
 serde = { version = "1.0.197", features = ["derive"] }

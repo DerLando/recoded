@@ -9,6 +9,7 @@ use nodes::InputNode;
 use nodes::OutputNode;
 
 mod nodes;
+mod shapes;
 
 const NUMBER_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 255, 0);
 const POINT_COLOR: egui::Color32 = egui::Color32::from_rgb(0, 255, 255);
@@ -43,6 +44,7 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             nodes::Nodes::Range(_) => nodes::range::RangeNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Circle(_) => nodes::circle::CircleNode::show_input(pin, ui, scale, snarl),
+            nodes::Nodes::Canvas(_) => nodes::canvas::CanvasNode::show_input(pin, ui, scale, snarl),
         }
     }
 
@@ -60,6 +62,9 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_output(pin, ui, scale, snarl),
             nodes::Nodes::Circle(_) => {
                 nodes::circle::CircleNode::show_output(pin, ui, scale, snarl)
+            }
+            nodes::Nodes::Canvas(_) => {
+                nodes::canvas::CanvasNode::show_output(pin, ui, scale, snarl)
             }
         }
     }
@@ -113,6 +118,13 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             );
             ui.close_menu();
         }
+        if ui.button("Canvas").clicked() {
+            snarl.insert_node(
+                pos,
+                nodes::Nodes::Canvas(nodes::canvas::CanvasNode::default()),
+            );
+            ui.close_menu();
+        }
     }
 }
 
@@ -154,6 +166,8 @@ impl NodeGraphApp {
 
 impl App for NodeGraphApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui_extras::install_image_loaders(ctx);
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.snarl.show(
                 &mut NodeGraphViewer,

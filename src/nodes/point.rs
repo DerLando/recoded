@@ -48,10 +48,10 @@ impl super::InputNode<super::Nodes> for PointNode {
     ) -> egui_snarl::ui::PinInfo {
         match pin.id.input {
             0 => super::show_number_input("X", pin, ui, scale, snarl, |id, snarl| {
-                &mut super::get_node_mut::<Self>(snarl, id).point.x
+                &mut super::get_node_mut::<Self>(snarl, id.node).point.x
             }),
             1 => super::show_number_input("Y", pin, ui, scale, snarl, |id, snarl| {
-                &mut super::get_node_mut::<Self>(snarl, id).point.y
+                &mut super::get_node_mut::<Self>(snarl, id.node).point.y
             }),
             _ => unreachable!(),
         }
