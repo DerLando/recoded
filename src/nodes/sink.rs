@@ -53,6 +53,10 @@ pub fn show_input(pin: &InPin, ui: &mut Ui, scale: f32, snarl: &Snarl<Nodes>) ->
                 ui.label(format!("{:?}", node.point_out()));
                 PinInfo::circle().with_fill(crate::POINT_COLOR)
             }
+            Nodes::Circle(node) => {
+                ui.label(format!("{:?}", node.circle_out()));
+                PinInfo::triangle().with_fill(crate::SHAPE_COLOR)
+            }
             _ => unreachable!(),
         },
         _ => unreachable!(),

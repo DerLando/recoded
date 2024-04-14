@@ -1,8 +1,12 @@
 use egui::Ui;
 use egui_snarl::{ui::PinInfo, InPin, OutPin, Snarl};
 
-use self::{constant_value::ConstantValueNode, point::PointNode, range::RangeNode, sink::SinkNode};
+use self::{
+    circle::CircleNode, constant_value::ConstantValueNode, point::PointNode, range::RangeNode,
+    sink::SinkNode,
+};
 
+pub mod circle;
 pub mod constant_value;
 pub mod point;
 pub mod range;
@@ -15,10 +19,16 @@ pub enum Nodes {
     Sink(sink::SinkNode),
     Range(range::RangeNode),
     Point(point::PointNode),
+    Circle(circle::CircleNode),
 }
 pub fn format_float(value: f64) -> String {
     let value = (value * 1000.0).round() / 1000.0;
     format!("{}", value)
+}
+pub fn format_point(value: piet::kurbo::Point) -> String {
+    let x = (value.x * 1000.0).round() / 1000.0;
+    let y = (value.y * 1000.0).round() / 1000.0;
+    format!("({};{})", x, y)
 }
 pub fn show_number_input(
     title: impl AsRef<str>,
@@ -42,6 +52,30 @@ pub fn show_number_input(
             } else {
                 ui.add(egui::DragValue::new(update_fn(pin.id, snarl)));
                 PinInfo::square().with_fill(crate::NUMBER_COLOR)
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn show_point_input(
+    title: impl AsRef<str>,
+    pin: &InPin,
+    ui: &mut Ui,
+    scale: f32,
+    snarl: &mut Snarl<Nodes>,
+    update_fn: impl FnOnce(egui_snarl::InPinId, &mut Snarl<Nodes>) -> &mut piet::kurbo::Point,
+) -> PinInfo {
+    ui.label(title.as_ref());
+    match &*pin.remotes {
+        [] => PinInfo::square().with_fill(crate::POINT_COLOR),
+        [remote] => {
+            if let Some(value) = snarl[remote.node].try_get_point() {
+                *(update_fn(pin.id, snarl)) = value;
+                ui.label(format_point(value));
+                PinInfo::square().with_fill(crate::POINT_COLOR)
+            } else {
+                PinInfo::square().with_fill(crate::POINT_COLOR)
             }
         }
         _ => unreachable!(),
@@ -75,6 +109,7 @@ impl Nodes {
             Self::Sink(_) => SinkNode::inputs(),
             Self::Range(_) => RangeNode::inputs(),
             Self::Point(_) => PointNode::inputs(),
+            Self::Circle(_) => CircleNode::inputs(),
         }
     }
     pub fn outputs(&self) -> usize {
@@ -83,6 +118,7 @@ impl Nodes {
             Self::Sink(_) => SinkNode::outputs(),
             Self::Range(_) => RangeNode::outputs(),
             Self::Point(_) => PointNode::outputs(),
+            Self::Circle(_) => CircleNode::outputs(),
         }
     }
     pub fn title(&self) -> String {
@@ -91,6 +127,7 @@ impl Nodes {
             Self::Sink(_) => SinkNode::title(),
             Self::Range(_) => RangeNode::title(),
             Self::Point(_) => PointNode::title(),
+            Self::Circle(_) => CircleNode::title(),
         }
     }
     pub fn try_get_float(&self) -> Option<f64> {
@@ -100,18 +137,11 @@ impl Nodes {
             _ => None,
         }
     }
-    pub fn try_downcast<N>(&self) -> Option<&N>
-    where
-        N: Node,
-    {
-        todo!()
-    }
-
-    pub fn try_downcast_mut<N>(&mut self) -> Option<&mut N>
-    where
-        N: Node,
-    {
-        todo!()
+    pub fn try_get_point(&self) -> Option<piet::kurbo::Point> {
+        match self {
+            Self::Point(node) => Some(node.point_out()),
+            _ => None,
+        }
     }
 }
 

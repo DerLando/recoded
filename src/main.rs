@@ -12,6 +12,7 @@ mod nodes;
 
 const NUMBER_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 255, 0);
 const POINT_COLOR: egui::Color32 = egui::Color32::from_rgb(0, 255, 255);
+const SHAPE_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 0, 255);
 const UNCONNECTED_COLOR: egui::Color32 = egui::Color32::from_rgb(50, 50, 50);
 
 struct NodeGraphViewer;
@@ -41,6 +42,7 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, scale, &snarl),
             nodes::Nodes::Range(_) => nodes::range::RangeNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_input(pin, ui, scale, snarl),
+            nodes::Nodes::Circle(_) => nodes::circle::CircleNode::show_input(pin, ui, scale, snarl),
         }
     }
 
@@ -56,6 +58,9 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             nodes::Nodes::Sink(_) => unreachable!(),
             nodes::Nodes::Range(_) => nodes::range::RangeNode::show_output(pin, ui, scale, snarl),
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_output(pin, ui, scale, snarl),
+            nodes::Nodes::Circle(_) => {
+                nodes::circle::CircleNode::show_output(pin, ui, scale, snarl)
+            }
         }
     }
 
@@ -99,6 +104,13 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         }
         if ui.button("Point").clicked() {
             snarl.insert_node(pos, nodes::Nodes::Point(nodes::point::PointNode::default()));
+            ui.close_menu();
+        }
+        if ui.button("Circle").clicked() {
+            snarl.insert_node(
+                pos,
+                nodes::Nodes::Circle(nodes::circle::CircleNode::default()),
+            );
             ui.close_menu();
         }
     }
