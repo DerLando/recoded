@@ -65,8 +65,6 @@ impl ConstantValueNode {
         }
     }
 
-    pub fn set_value(&mut self, value: f64) {}
-
     pub fn show_output(&mut self, ui: &mut Ui) -> PinInfo {
         egui::ComboBox::from_label("Select one")
             .selected_text(format!("{:?}", &mut self.value))

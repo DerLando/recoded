@@ -97,6 +97,9 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
     }
 }
 
+// TODO: I also need a generic solver which can solve a [`Snarl`]
+// without showing any ui. This will allow hosting graphs in an axum
+// server and sending json serialized inputs and getting the result back
 pub struct NodeGraphApp {
     snarl: Snarl<nodes::Nodes>,
     style: SnarlStyle,

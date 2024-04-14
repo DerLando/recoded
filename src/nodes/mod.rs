@@ -56,6 +56,7 @@ impl Nodes {
     pub fn try_get_float(&self) -> Option<f64> {
         match self {
             Self::ConstantValueNode(node) => Some(node.number_out()),
+            Self::Range(node) => node.get_numbers().next(),
             _ => None,
         }
     }
@@ -88,4 +89,12 @@ pub trait InputNode<T>: Node {
 
 pub trait OutputNode<T>: Node {
     fn show_output(pin: &OutPin, ui: &mut Ui, scale: f32, snarl: &mut Snarl<T>) -> PinInfo;
+}
+
+pub trait NumberEmitterNode {
+    fn try_get_number(&self) -> f64;
+    fn try_get_numbers(&self) -> impl Iterator<Item = f64> + '_;
+    // TODO: Maybe something to broadcast numbers?
+    // Or, alternatively, nodes can decide that on their inputs
+    // themselfes
 }

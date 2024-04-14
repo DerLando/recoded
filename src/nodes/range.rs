@@ -16,6 +16,16 @@ impl RangeNode {
         (0..self.count).map(|i| self.start + self.step * i as f64)
     }
 }
+/// Need to get fancy, since the node is stored
+/// inside of the snarl, so if we bind it to a variable
+/// we will have to separate mutable references into
+/// the snarls inner storage, which will make borowck cry
+fn get_node_mut<'a>(
+    snarl: &'a mut egui_snarl::Snarl<Nodes>,
+    pin: &'a egui_snarl::InPin,
+) -> &'a mut RangeNode {
+    RangeNode::try_downcast_mut(&mut snarl[pin.id.node]).expect("Is ok")
+}
 
 impl super::Node for RangeNode {}
 
@@ -59,6 +69,90 @@ impl NodeInfo for RangeNode {
     }
 }
 
+fn show_start_input(
+    pin: &egui_snarl::InPin,
+    ui: &mut egui::Ui,
+    scale: f32,
+    snarl: &mut egui_snarl::Snarl<Nodes>,
+) -> PinInfo {
+    let info: PinInfo;
+    ui.label("Start");
+    match &*pin.remotes {
+        [] => {
+            ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).start));
+            info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
+        }
+        [remote] => {
+            if let Some(value) = snarl[remote.node].try_get_float() {
+                get_node_mut(snarl, pin).start = value;
+                ui.label(super::format_float(value));
+                info = PinInfo::square().with_fill(crate::NUMBER_COLOR);
+            } else {
+                ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).start));
+                info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
+            }
+        }
+        _ => unreachable!(),
+    }
+    info
+}
+
+fn show_step_input(
+    pin: &egui_snarl::InPin,
+    ui: &mut egui::Ui,
+    scale: f32,
+    snarl: &mut egui_snarl::Snarl<Nodes>,
+) -> PinInfo {
+    let info: PinInfo;
+    ui.label("Step");
+    match &*pin.remotes {
+        [] => {
+            ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).step));
+            info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
+        }
+        [remote] => {
+            if let Some(value) = snarl[remote.node].try_get_float() {
+                get_node_mut(snarl, pin).step = value;
+                ui.label(super::format_float(value));
+                info = PinInfo::square().with_fill(crate::NUMBER_COLOR);
+            } else {
+                ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).step));
+                info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
+            }
+        }
+        _ => unreachable!(),
+    }
+    info
+}
+
+fn show_count_input(
+    pin: &egui_snarl::InPin,
+    ui: &mut egui::Ui,
+    scale: f32,
+    snarl: &mut egui_snarl::Snarl<Nodes>,
+) -> PinInfo {
+    let info: PinInfo;
+    ui.label("Count");
+    match &*pin.remotes {
+        [] => {
+            ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).count));
+            info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
+        }
+        [remote] => {
+            if let Some(value) = snarl[remote.node].try_get_float() {
+                get_node_mut(snarl, pin).count = value as usize;
+                ui.label(super::format_float(value));
+                info = PinInfo::square().with_fill(crate::NUMBER_COLOR);
+            } else {
+                ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).count));
+                info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
+            }
+        }
+        _ => unreachable!(),
+    }
+    info
+}
+
 impl InputNode<Nodes> for RangeNode {
     fn show_input(
         pin: &egui_snarl::InPin,
@@ -66,16 +160,6 @@ impl InputNode<Nodes> for RangeNode {
         scale: f32,
         snarl: &mut egui_snarl::Snarl<Nodes>,
     ) -> PinInfo {
-        /// Need to get fancy, since the node is stored
-        /// inside of the snarl, so if we bind it to a variable
-        /// we will have to separate mutable references into
-        /// the snarls inner storage, which will make borowck cry
-        fn get_node_mut<'a>(
-            snarl: &'a mut egui_snarl::Snarl<Nodes>,
-            pin: &'a egui_snarl::InPin,
-        ) -> &'a mut RangeNode {
-            RangeNode::try_downcast_mut(&mut snarl[pin.id.node]).expect("Is ok")
-        }
         ui.set_width(120.0 * scale);
         ui.set_height(16.0 * scale);
         ui.with_layout(
@@ -84,31 +168,13 @@ impl InputNode<Nodes> for RangeNode {
                 ui.add_space(20.0 * scale);
                 match pin.id.input {
                     0 => {
-                        ui.label("Start");
-                        match &*pin.remotes {
-                            [] => {
-                                ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).start));
-                            }
-                            [remote] => {
-                                if let Some(value) = snarl[remote.node].try_get_float() {
-                                    get_node_mut(snarl, pin).start = value;
-                                    ui.label(super::format_float(value));
-                                } else {
-                                    ui.add(egui::DragValue::new(
-                                        &mut get_node_mut(snarl, pin).start,
-                                    ));
-                                }
-                            }
-                            _ => unreachable!(),
-                        }
+                        show_start_input(pin, ui, scale, snarl);
                     }
                     1 => {
-                        ui.add(egui::Label::new("Step"));
-                        ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).step));
+                        show_step_input(pin, ui, scale, snarl);
                     }
                     2 => {
-                        ui.add(egui::Label::new("Count"));
-                        ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin).count));
+                        show_count_input(pin, ui, scale, snarl);
                     }
                     _ => unreachable!(),
                 };
