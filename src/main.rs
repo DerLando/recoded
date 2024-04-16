@@ -1,3 +1,4 @@
+use app::NodeGraphApp;
 use eframe::App;
 use eframe::CreationContext;
 use egui::Color32;
@@ -8,184 +9,15 @@ use egui_snarl::Snarl;
 use nodes::InputNode;
 use nodes::OutputNode;
 
+mod app;
 mod nodes;
 mod shapes;
+mod viewer;
 
 const NUMBER_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 255, 0);
 const POINT_COLOR: egui::Color32 = egui::Color32::from_rgb(0, 255, 255);
 const SHAPE_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 0, 255);
 const UNCONNECTED_COLOR: egui::Color32 = egui::Color32::from_rgb(50, 50, 50);
-
-struct NodeGraphViewer;
-
-impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
-    fn title(&mut self, node: &nodes::Nodes) -> String {
-        node.title()
-    }
-
-    fn outputs(&mut self, node: &nodes::Nodes) -> usize {
-        node.outputs()
-    }
-
-    fn inputs(&mut self, node: &nodes::Nodes) -> usize {
-        node.inputs()
-    }
-
-    fn show_input(
-        &mut self,
-        pin: &egui_snarl::InPin,
-        ui: &mut egui::Ui,
-        scale: f32,
-        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
-    ) -> egui_snarl::ui::PinInfo {
-        match &mut snarl[pin.id.node] {
-            nodes::Nodes::ConstantValueNode(_) => unreachable!(),
-            nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, scale, &snarl),
-            nodes::Nodes::Range(_) => nodes::range::RangeNode::show_input(pin, ui, scale, snarl),
-            nodes::Nodes::Point(_) => nodes::point::PointNode::show_input(pin, ui, scale, snarl),
-            nodes::Nodes::Circle(_) => nodes::circle::CircleNode::show_input(pin, ui, scale, snarl),
-            nodes::Nodes::Canvas(_) => nodes::canvas::CanvasNode::show_input(pin, ui, scale, snarl),
-        }
-    }
-
-    fn show_output(
-        &mut self,
-        pin: &egui_snarl::OutPin,
-        ui: &mut egui::Ui,
-        scale: f32,
-        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
-    ) -> egui_snarl::ui::PinInfo {
-        match &mut snarl[pin.id.node] {
-            nodes::Nodes::ConstantValueNode(ref mut node) => node.show_output(ui),
-            nodes::Nodes::Sink(_) => unreachable!(),
-            nodes::Nodes::Range(_) => nodes::range::RangeNode::show_output(pin, ui, scale, snarl),
-            nodes::Nodes::Point(_) => nodes::point::PointNode::show_output(pin, ui, scale, snarl),
-            nodes::Nodes::Circle(_) => {
-                nodes::circle::CircleNode::show_output(pin, ui, scale, snarl)
-            }
-            nodes::Nodes::Canvas(_) => {
-                nodes::canvas::CanvasNode::show_output(pin, ui, scale, snarl)
-            }
-        }
-    }
-
-    fn input_color(
-        &mut self,
-        pin: &egui_snarl::InPin,
-        style: &Style,
-        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
-    ) -> Color32 {
-        NUMBER_COLOR
-    }
-
-    fn output_color(
-        &mut self,
-        pin: &egui_snarl::OutPin,
-        style: &Style,
-        snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
-    ) -> Color32 {
-        NUMBER_COLOR
-    }
-
-    fn graph_menu(
-        &mut self,
-        pos: egui::Pos2,
-        ui: &mut egui::Ui,
-        _scale: f32,
-        snarl: &mut Snarl<nodes::Nodes>,
-    ) {
-        ui.label("Add node");
-        if ui.button("Constant").clicked() {
-            snarl.insert_node(pos, nodes::Nodes::ConstantValueNode(nodes::constant_value::ConstantValueNode::default()));
-            ui.close_menu();
-        }
-        if ui.button("Sink").clicked() {
-            snarl.insert_node(pos, nodes::Nodes::Sink(nodes::sink::SinkNode));
-            ui.close_menu();
-        }
-        if ui.button("Range").clicked() {
-            snarl.insert_node(pos, nodes::Nodes::Range(nodes::range::RangeNode::default()));
-            ui.close_menu();
-        }
-        if ui.button("Point").clicked() {
-            snarl.insert_node(pos, nodes::Nodes::Point(nodes::point::PointNode::default()));
-            ui.close_menu();
-        }
-        if ui.button("Circle").clicked() {
-            snarl.insert_node(
-                pos,
-                nodes::Nodes::Circle(nodes::circle::CircleNode::default()),
-            );
-            ui.close_menu();
-        }
-        if ui.button("Canvas").clicked() {
-            snarl.insert_node(
-                pos,
-                nodes::Nodes::Canvas(nodes::canvas::CanvasNode::default()),
-            );
-            ui.close_menu();
-        }
-    }
-}
-
-// TODO: I also need a generic solver which can solve a [`Snarl`]
-// without showing any ui. This will allow hosting graphs in an axum
-// server and sending json serialized inputs and getting the result back
-pub struct NodeGraphApp {
-    snarl: Snarl<nodes::Nodes>,
-    style: SnarlStyle,
-}
-
-impl NodeGraphApp {
-    pub fn new(cx: &CreationContext) -> Self {
-        let snarl = match cx.storage {
-            None => Snarl::new(),
-            Some(storage) => {
-                let snarl = storage
-                    .get_string("snarl")
-                    .and_then(|snarl| serde_json::from_str(&snarl).ok())
-                    .unwrap_or_else(Snarl::new);
-                snarl
-            }
-        };
-
-        let style = match cx.storage {
-            None => SnarlStyle::new(),
-            Some(storage) => {
-                let style = storage
-                    .get_string("style")
-                    .and_then(|style| serde_json::from_str(&style).ok())
-                    .unwrap_or_else(SnarlStyle::new);
-                style
-            }
-        };
-
-        NodeGraphApp { snarl, style }
-    }
-}
-
-impl App for NodeGraphApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui_extras::install_image_loaders(ctx);
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.snarl.show(
-                &mut NodeGraphViewer,
-                &self.style,
-                egui::Id::new("snarl"),
-                ui,
-            );
-        });
-    }
-
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        let snarl = serde_json::to_string(&self.snarl).unwrap();
-        storage.set_string("snarl", snarl);
-
-        let style = serde_json::to_string(&self.style).unwrap();
-        storage.set_string("style", style);
-    }
-}
 
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
