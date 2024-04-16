@@ -2,7 +2,7 @@
 
 A visual programming environment for creative coding.
 
-[recoded UI](resources/UI_current.png)
+![recoded UI](resources/UI_current.png)
 
 ## Disclaimer
 
@@ -41,3 +41,11 @@ Basically nothing is implemented at the moment, so the roadmap is long. But I do
   git clone https://github.com/DerLando/recoded.git
   cargo run --release
   ```
+
+## Dependencies
+
+`recoded` in it's current stage would **not** be possible without these awesome projects:
+
+- [piet](https://github.com/linebender/piet)
+- [egui](https://github.com/emilk/egui) and [eframe](https://github.com/emilk/egui/tree/master/crates/eframe)
+- [egui-snarl](https://github.com/zakarumych/egui-snarl/)
