@@ -78,3 +78,12 @@ impl super::OutputNode<super::Nodes> for CircleNode {
         PinInfo::triangle().with_fill(crate::SHAPE_COLOR)
     }
 }
+impl super::EmitterNode<Shapes> for CircleNode {
+    fn value_out(&self) -> Shapes {
+        Shapes::Circle(self.circle_out().to_owned())
+    }
+
+    fn values_out(&self) -> impl Iterator<Item = Shapes> + '_ {
+        (0..1).map(|_| self.value_out())
+    }
+}

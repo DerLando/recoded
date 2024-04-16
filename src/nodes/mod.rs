@@ -5,7 +5,7 @@ use crate::shapes::Shapes;
 
 use self::{
     canvas::CanvasNode, circle::CircleNode, constant_value::ConstantValueNode, point::PointNode,
-    range::RangeNode, sink::SinkNode,
+    range::RangeNode, repeat::RepeatShapeNode, sink::SinkNode,
 };
 
 pub mod canvas;
@@ -13,6 +13,7 @@ pub mod circle;
 pub mod constant_value;
 pub mod point;
 pub mod range;
+pub mod repeat;
 pub mod sink;
 
 /// Main enum containing all node types
@@ -24,6 +25,7 @@ pub enum Nodes {
     Point(point::PointNode),
     Circle(circle::CircleNode),
     Canvas(canvas::CanvasNode),
+    RepeatShape(repeat::RepeatShapeNode),
 }
 pub fn format_float(value: f64) -> String {
     let value = (value * 1000.0).round() / 1000.0;
@@ -159,6 +161,7 @@ impl Nodes {
             Self::Point(_) => PointNode::inputs(),
             Self::Circle(_) => CircleNode::inputs(),
             Self::Canvas(_) => CanvasNode::inputs(),
+            Self::RepeatShape(_) => RepeatShapeNode::inputs(),
         }
     }
     pub fn outputs(&self) -> usize {
@@ -169,6 +172,7 @@ impl Nodes {
             Self::Point(_) => PointNode::outputs(),
             Self::Circle(_) => CircleNode::outputs(),
             Self::Canvas(_) => CanvasNode::outputs(),
+            Self::RepeatShape(_) => RepeatShapeNode::outputs(),
         }
     }
     pub fn title(&self) -> String {
@@ -179,6 +183,7 @@ impl Nodes {
             Self::Point(_) => PointNode::title(),
             Self::Circle(_) => CircleNode::title(),
             Self::Canvas(_) => CanvasNode::title(),
+            Self::RepeatShape(_) => RepeatShapeNode::title(),
         }
     }
     pub fn try_get_float(&self) -> Option<f64> {
@@ -198,13 +203,16 @@ impl Nodes {
     pub fn try_get_shape(&self) -> Option<Shapes> {
         match self {
             Self::Circle(node) => Some(node.shape_out()),
+            Self::RepeatShape(node) => Some(node.value_out()),
             _ => None,
         }
     }
 
     pub fn try_get_shapes(&self) -> Option<Vec<Shapes>> {
         match self {
-            _ => unreachable!(),
+            Self::RepeatShape(node) => Some(node.values_out().collect::<Vec<_>>()),
+            Self::Circle(node) => Some(node.values_out().collect::<Vec<_>>()),
+            _ => None,
         }
     }
 }
@@ -231,4 +239,8 @@ pub trait NumberEmitterNode {
     // TODO: Maybe something to broadcast numbers?
     // Or, alternatively, nodes can decide that on their inputs
     // themselfes
+}
+pub trait EmitterNode<T> {
+    fn value_out(&self) -> T;
+    fn values_out(&self) -> impl Iterator<Item = T> + '_;
 }

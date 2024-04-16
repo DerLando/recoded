@@ -1,6 +1,12 @@
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub enum Shapes {
     Circle(piet::kurbo::Circle),
+}
+
+impl Default for Shapes {
+    fn default() -> Self {
+        Self::Circle(piet::kurbo::Circle::default())
+    }
 }
 
 impl Shapes {
