@@ -11,6 +11,7 @@ use nodes::OutputNode;
 
 mod app;
 mod nodes;
+mod pins;
 mod shapes;
 mod viewer;
 
