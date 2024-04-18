@@ -121,13 +121,13 @@ mod test {
     use super::*;
 
     #[derive(Default)]
-    struct TestNode {
+    struct TestSeriesNode {
         count: InputPin<usize>,
         number: InputPin<f64>,
         series_out: OutputPin<f64>,
     }
 
-    impl TestNode {
+    impl TestSeriesNode {
         fn recalc_series(&mut self) {
             self.series_out.values_in(
                 (0..*self.count.value_out().unwrap()).map(|_| *self.number.value_out().unwrap()),
@@ -141,12 +141,50 @@ mod test {
         }
     }
 
+    #[derive(Default)]
+    struct TestMulNode {
+        number: InputPin<f64>,
+        rhs: InputPin<f64>,
+        number_out: OutputPin<f64>,
+    }
+
+    impl TestMulNode {
+        fn recalc(&mut self) {
+            let rhs = self.rhs.value_out().map(|v| *v).unwrap_or_default().clone();
+            self.number_out
+                .values_in(self.number.values_out().iter().map(|v| *v * rhs))
+        }
+        fn get_number_out(&mut self) -> &Vec<f64> {
+            if self.number.data.is_dirty || self.rhs.data.is_dirty {
+                self.recalc();
+            }
+            self.number_out.values_out()
+        }
+    }
+
     #[test]
     fn can_do_ops_with_testnode() {
-        let mut node = TestNode::default();
+        let mut node = TestSeriesNode::default();
         node.count.value_in(10u8);
         node.number.value_in(42.0f32);
         let actual = node.get_series_out();
         assert!(actual.iter().all(|n| *n == 42.0f64));
+    }
+
+    #[test]
+    fn can_stick_nodes_into_eachother() {
+        let mut series_node = TestSeriesNode::default();
+        series_node.count.value_in(10u8);
+        series_node.number.value_in(42.0f32);
+        let mut mul_node = TestMulNode::default();
+        mul_node.rhs.value_in(2u8);
+        // TODO: I'm not loving the .cloned() call here.
+        // Would be better if the inputs could also take references
+        // fine, since sometimes the data should be shared via pointers
+        mul_node
+            .number
+            .values_in(series_node.get_series_out().iter().cloned());
+        let actual = mul_node.get_number_out();
+        assert!(actual.iter().all(|n| *n == 84.0f64));
     }
 }
