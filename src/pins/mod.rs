@@ -2,25 +2,37 @@
 pub struct InputPinId(usize);
 #[derive(Default)]
 pub struct OutputPinId(usize);
-#[derive(Default)]
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct InputPin<T> {
-    id: InputPinId,
+    // id: InputPinId,
     data: PinData<T>,
 }
 
-#[derive(Default)]
+impl<T> InputPin<T> {
+    pub fn is_dirty(&self) -> bool {
+        self.data.is_dirty
+    }
+}
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct OutputPin<T> {
-    id: OutputPinId,
+    // id: OutputPinId,
     data: PinData<T>,
 }
 
-#[derive(Default)]
+impl<T> OutputPin<T> {
+    pub fn is_dirty(&self) -> bool {
+        self.data.is_dirty
+    }
+}
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 struct PinData<T> {
     data: Vec<T>,
     is_dirty: bool,
 }
 
-trait IPin<T> {
+pub trait IPin<T> {
     fn value_in(&mut self, value: T);
     fn values_in(&mut self, values: impl Iterator<Item = T>);
 }

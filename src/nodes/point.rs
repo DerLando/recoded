@@ -1,13 +1,48 @@
 use egui_snarl::ui::PinInfo;
 
+use crate::pins::{IPin, InputPin, OPin, OutputPin};
+
 #[derive(serde::Serialize, serde::Deserialize, Default)]
 pub struct PointNode {
-    point: piet::kurbo::Point,
+    x_in: InputPin<f64>,
+    y_in: InputPin<f64>,
+    point_out: OutputPin<piet::kurbo::Point>,
 }
 
+/// TODO:
+/// I think showing inputs and outputs should not
+/// be the place where we recalc the node, but rather when
+/// we pull values from it, since recalculation
+/// could be forgotten in the inputs.
+/// I'm missing a general function in egui_snarl
+/// to call once per node...
+/// Maybe it's already time to create a custom solver
+/// That iterates the whole snarl back to front and makes
+/// sure to calculate all node values...
 impl PointNode {
-    pub fn point_out(&self) -> piet::kurbo::Point {
-        self.point
+    fn recalc(&mut self) {
+        let x = self.x_in.values_out();
+        let y = self.y_in.values_out();
+        let pts = x
+            .iter()
+            .zip(y.iter())
+            .map(|(x, y)| piet::kurbo::Point::new(*x, *y));
+        self.point_out.values_in(pts);
+    }
+    fn needs_recalc(&self) -> bool {
+        self.x_in.is_dirty() || self.y_in.is_dirty()
+    }
+    pub fn point_out(&mut self) -> piet::kurbo::Point {
+        if self.needs_recalc() {
+            self.recalc();
+        }
+        self.point_out.value_out().map(|pt| *pt).unwrap_or_default()
+    }
+    pub fn points_out(&mut self) -> impl Iterator<Item = &piet::kurbo::Point> {
+        if self.needs_recalc() {
+            self.recalc()
+        }
+        self.point_out.values_out().iter()
     }
 }
 
@@ -47,11 +82,11 @@ impl super::InputNode<super::Nodes> for PointNode {
         snarl: &mut egui_snarl::Snarl<super::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
         match pin.id.input {
-            0 => super::show_number_input("X", pin, ui, scale, snarl, |id, snarl| {
-                &mut super::get_node_mut::<Self>(snarl, id.node).point.x
+            0 => super::show_input_for_number_pin("X", pin, ui, scale, snarl, |id, snarl| {
+                &mut super::get_node_mut::<Self>(snarl, id.node).x_in
             }),
-            1 => super::show_number_input("Y", pin, ui, scale, snarl, |id, snarl| {
-                &mut super::get_node_mut::<Self>(snarl, id.node).point.y
+            1 => super::show_input_for_number_pin("Y", pin, ui, scale, snarl, |id, snarl| {
+                &mut super::get_node_mut::<Self>(snarl, id.node).y_in
             }),
             _ => unreachable!(),
         }

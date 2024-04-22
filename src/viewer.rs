@@ -18,6 +18,20 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         node.inputs()
     }
 
+    fn node_menu(
+        &mut self,
+        node: egui_snarl::NodeId,
+        inputs: &[egui_snarl::InPin],
+        outputs: &[egui_snarl::OutPin],
+        ui: &mut egui::Ui,
+        scale: f32,
+        snarl: &mut Snarl<nodes::Nodes>,
+    ) {
+        if ui.button("Delete").clicked() {
+            snarl.remove_node(node);
+        };
+    }
+
     fn show_input(
         &mut self,
         pin: &egui_snarl::InPin,
@@ -27,7 +41,7 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
     ) -> egui_snarl::ui::PinInfo {
         match &mut snarl[pin.id.node] {
             nodes::Nodes::ConstantValueNode(_) => unreachable!(),
-            nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, scale, &snarl),
+            nodes::Nodes::Sink(_) => nodes::sink::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Range(_) => nodes::range::RangeNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Circle(_) => nodes::circle::CircleNode::show_input(pin, ui, scale, snarl),

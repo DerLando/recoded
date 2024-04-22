@@ -1,7 +1,10 @@
 use egui::Ui;
 use egui_snarl::{ui::PinInfo, InPin, OutPin, Snarl};
 
-use crate::shapes::Shapes;
+use crate::{
+    pins::{IPin, InputPin, OPin},
+    shapes::Shapes,
+};
 
 use self::{
     canvas::CanvasNode, circle::CircleNode, constant_value::ConstantValueNode, point::PointNode,
@@ -57,6 +60,49 @@ pub fn show_number_input(
                 PinInfo::square().with_fill(crate::NUMBER_COLOR)
             } else {
                 ui.add(egui::DragValue::new(update_fn(pin.id, snarl)));
+                PinInfo::square().with_fill(crate::NUMBER_COLOR)
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn show_input_for_number_pin<N>(
+    title: impl AsRef<str>,
+    pin: &InPin,
+    ui: &mut Ui,
+    scale: f32,
+    snarl: &mut Snarl<Nodes>,
+    update_fn: impl FnOnce(egui_snarl::InPinId, &mut Snarl<Nodes>) -> &mut InputPin<N>,
+) -> PinInfo
+where
+    N: eframe::emath::Numeric,
+{
+    fn add_dragvalue_for_pin<N: eframe::emath::Numeric>(ui: &mut Ui, in_pin: &mut InputPin<N>) {
+        let drag_value = egui::DragValue::from_get_set(|v| {
+            println!("{:?}", v);
+            if let Some(v) = v {
+                in_pin.value_in(eframe::emath::Numeric::from_f64(v));
+            }
+            println!("{:?}", in_pin.value_out().map(|n| n.to_f64()));
+            in_pin.value_out().map(|n| n.to_f64()).unwrap_or_default()
+        });
+        ui.add(drag_value);
+    }
+
+    ui.label(title.as_ref());
+    match &*pin.remotes {
+        [] => {
+            add_dragvalue_for_pin(ui, update_fn(pin.id, snarl));
+            PinInfo::square().with_fill(crate::NUMBER_COLOR)
+        }
+        [remote] => {
+            if let Some(value) = snarl[remote.node].try_get_floats() {
+                (update_fn(pin.id, snarl)).values_in(value.iter().map(|v| N::from_f64(*v)));
+                // ui.label(format_float(value));
+                PinInfo::square().with_fill(crate::NUMBER_COLOR)
+            } else {
+                add_dragvalue_for_pin(ui, update_fn(pin.id, snarl));
                 PinInfo::square().with_fill(crate::NUMBER_COLOR)
             }
         }
@@ -193,7 +239,14 @@ impl Nodes {
             _ => None,
         }
     }
-    pub fn try_get_point(&self) -> Option<piet::kurbo::Point> {
+    pub fn try_get_floats(&self) -> Option<Vec<f64>> {
+        match self {
+            Self::ConstantValueNode(node) => Some(vec![node.number_out()]),
+            Self::Range(node) => Some(node.get_numbers().collect::<Vec<_>>()),
+            _ => None,
+        }
+    }
+    pub fn try_get_point(&mut self) -> Option<piet::kurbo::Point> {
         match self {
             Self::Point(node) => Some(node.point_out()),
             _ => None,

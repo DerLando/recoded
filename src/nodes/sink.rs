@@ -25,14 +25,14 @@ pub fn format_float(value: f64) -> String {
     let value = (value * 1000.0).round() / 1000.0;
     format!("{}", value)
 }
-pub fn show_input(pin: &InPin, ui: &mut Ui, scale: f32, snarl: &Snarl<Nodes>) -> PinInfo {
+pub fn show_input(pin: &InPin, ui: &mut Ui, scale: f32, snarl: &mut Snarl<Nodes>) -> PinInfo {
     // TODO: Probably there is more to display than numbers
-    match &*pin.remotes {
+    match *pin.remotes {
         [] => {
             ui.label("None");
             PinInfo::circle().with_fill(crate::UNCONNECTED_COLOR)
         }
-        [remote] => match &snarl[remote.node] {
+        [remote] => match &mut snarl[remote.node] {
             Nodes::ConstantValueNode(value) => {
                 ui.label(format_float(value.number_out()));
                 PinInfo::square().with_fill(crate::NUMBER_COLOR)
@@ -49,7 +49,7 @@ pub fn show_input(pin: &InPin, ui: &mut Ui, scale: f32, snarl: &Snarl<Nodes>) ->
                     });
                 PinInfo::square().with_fill(crate::NUMBER_COLOR)
             }
-            Nodes::Point(node) => {
+            Nodes::Point(ref mut node) => {
                 ui.label(format!("{:?}", node.point_out()));
                 PinInfo::circle().with_fill(crate::POINT_COLOR)
             }
