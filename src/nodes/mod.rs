@@ -2,7 +2,7 @@ use egui::Ui;
 use egui_snarl::{ui::PinInfo, InPin, OutPin, Snarl};
 
 use crate::{
-    pins::{IPin, InputPin, OPin},
+    pins::{IPin, InputPin, OPin, OutputPinId},
     shapes::Shapes,
 };
 
@@ -29,6 +29,16 @@ pub enum Nodes {
     Circle(circle::CircleNode),
     Canvas(canvas::CanvasNode),
     RepeatShape(repeat::RepeatShapeNode),
+}
+
+impl Nodes {
+    pub fn solve(&mut self) {
+        todo!()
+    }
+
+    pub fn out_ids(&self) -> impl Iterator<Item = OutputPinId> {
+        (0..1).into_iter().map(|_| OutputPinId(0))
+    }
 }
 pub fn format_float(value: f64) -> String {
     let value = (value * 1000.0).round() / 1000.0;

@@ -1,7 +1,7 @@
 #[derive(Default)]
-pub struct InputPinId(usize);
+pub struct InputPinId(pub usize);
 #[derive(Default)]
-pub struct OutputPinId(usize);
+pub struct OutputPinId(pub usize);
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct InputPin<T> {
     // id: InputPinId,
