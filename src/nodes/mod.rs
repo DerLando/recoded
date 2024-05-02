@@ -36,6 +36,8 @@ impl Nodes {
         todo!()
     }
 
+    /// TODO: How to impl this? Do we store the ids on the nodes
+    /// themselves?
     pub fn out_ids(&self) -> impl Iterator<Item = OutputPinId> {
         (0..1).into_iter().map(|_| OutputPinId(0))
     }

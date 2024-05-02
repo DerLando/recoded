@@ -27,21 +27,64 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct NodeId(usize);
 
+impl From<egui_snarl::NodeId> for NodeId {
+    fn from(value: egui_snarl::NodeId) -> Self {
+        todo!()
+    }
+}
+
+impl From<egui_snarl::InPinId> for InputPinId {
+    fn from(value: egui_snarl::InPinId) -> Self {
+        todo!()
+    }
+}
+
+impl From<egui_snarl::OutPinId> for OutputPinId {
+    fn from(value: egui_snarl::OutPinId) -> Self {
+        todo!()
+    }
+}
+
+fn get_downstream_nodes(
+    snarl: &egui_snarl::Snarl<Nodes>,
+    node_id: NodeId,
+    out_id: OutputPinId,
+) -> impl Iterator<Item = (NodeId, InputPinId)> {
+    let node = &snarl[node_id];
+    let pin = snarl.out_pin(egui_snarl::OutPinId {
+        node: egui_snarl::NodeId(node_id.0),
+        output: out_id.0,
+    });
+    pin.remotes.into_iter().map(|r| (r.node.into(), r.into()))
+}
+
+trait DownStreamTopology {
+    fn get_downstream_inputs(
+        &self,
+        node_id: NodeId,
+        out_id: OutputPinId,
+    ) -> impl Iterator<Item = (NodeId, InputPinId)>;
+}
+
+impl DownStreamTopology for egui_snarl::Snarl<Nodes> {
+    fn get_downstream_inputs(
+        &self,
+        node_id: NodeId,
+        out_id: OutputPinId,
+    ) -> impl Iterator<Item = (NodeId, InputPinId)> {
+        get_downstream_nodes(&self, node_id, out_id)
+    }
+}
+
 struct NodeStoreRef<'a, T>
 where
-    T: std::ops::Index<NodeId, Output = Nodes>,
+    T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology,
 {
     inner: &'a T,
 }
 
-impl<'a, T> NodeStoreRef<'a, T>
-where
-    T: std::ops::Index<NodeId, Output = Nodes>,
-{
-    pub fn downstream_node(&self, out_id: OutputPinId) -> Option<NodeId> {
-        todo!()
-    }
-}
+impl<'a, T> NodeStoreRef<'a, T> where T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology
+{}
 
 struct NodeStoreMut<'a, T>
 where
@@ -97,9 +140,14 @@ impl Marker {
         }
     }
 
+    /// Mark all nodes starting from the given node for solving
+    /// TODO: This should also mark the individual input params
+    /// so we don't have to fetch data on all input params
+    /// when solving. A node with 20 params where only one changed
+    /// would be the example where this optimization makes sense
     fn mark_nodes_from<'a, T>(&mut self, store: &T, node_id: NodeId)
     where
-        T: std::ops::Index<NodeId, Output = Nodes> + 'a,
+        T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology + 'a,
     {
         let store = NodeStoreRef { inner: store };
         self.mark_node_inner(&store, node_id, 0);
@@ -107,14 +155,16 @@ impl Marker {
 
     fn mark_node_inner<'a, T>(&mut self, store: &NodeStoreRef<'_, T>, node_id: NodeId, rank: usize)
     where
-        T: std::ops::Index<NodeId, Output = Nodes> + 'a,
+        T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology + 'a,
     {
         self.store_node_rank(node_id, rank);
 
         let node = &store.inner[node_id];
         for out_pin_id in node.out_ids() {
-            if let Some(downstream) = &store.downstream_node(out_pin_id) {
-                self.mark_node_inner(store, *downstream, rank + 1)
+            for (downstream_node, _) in store.inner.get_downstream_inputs(node_id, out_pin_id) {
+                // TODO: Use the input pin id info here to mark
+                // the actual input that needs to recompute
+                self.mark_node_inner(store, downstream_node, rank + 1)
             }
         }
     }
@@ -145,33 +195,19 @@ impl Marker {
         self.rank_by_node.insert(node_id, rank);
     }
 
+    /// Get the rank of a given node, as measured from the start
+    /// node of the change event
     pub fn get_rank(&self, node_id: NodeId) -> Option<usize> {
         self.rank_by_node.get(&node_id).copied()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Vec<NodeId>> {
+        self.ranks.values()
     }
 }
 
 pub struct Solver {
     nodes_ids: Vec<NodeId>,
-    connections: Vec<OutgoingConnections>,
-    dirty_ranks: HashMap<usize, Vec<NodeId>>,
-    dirty_ranks_by_node: HashMap<NodeId, usize>,
-}
-
-impl Solver {}
-
-struct OutgoingConnections {
-    node_id: NodeId,
-    pin_id: OutputPinId,
-}
-
-impl OutgoingConnections {
-    fn get_connections<'a, S, T>(&self, store: &S) -> impl Iterator<Item = (NodeId, InputPinId)>
-    where
-        S: Into<NodeStoreRef<'a, T>>,
-        T: std::ops::Index<NodeId, Output = Nodes> + 'a,
-    {
-        (0..1).into_iter().map(|_| (NodeId(0), InputPinId(0)))
-    }
 }
 
 #[cfg(test)]
@@ -182,11 +218,6 @@ mod test {
     fn test_api() {
         let mut snarl: egui_snarl::Snarl<Nodes> = egui_snarl::Snarl::new();
         // Solver::mark_node_for_solve(&mut snarl, NodeId(0));
-        let connections = OutgoingConnections {
-            node_id: todo!(),
-            pin_id: todo!(),
-        };
-        connections.get_connections(&snarl);
     }
 
     #[test]
