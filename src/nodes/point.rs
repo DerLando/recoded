@@ -1,6 +1,6 @@
 use egui_snarl::ui::PinInfo;
 
-use crate::pins::{IPin, InputPin, OPin, OutputPin};
+use crate::pins::{IPin, InputPin, InputPinId, OPin, OutputPin};
 
 #[derive(serde::Serialize, serde::Deserialize, Default)]
 pub struct PointNode {
@@ -9,16 +9,6 @@ pub struct PointNode {
     point_out: OutputPin<piet::kurbo::Point>,
 }
 
-/// TODO:
-/// I think showing inputs and outputs should not
-/// be the place where we recalc the node, but rather when
-/// we pull values from it, since recalculation
-/// could be forgotten in the inputs.
-/// I'm missing a general function in egui_snarl
-/// to call once per node...
-/// Maybe it's already time to create a custom solver
-/// That iterates the whole snarl back to front and makes
-/// sure to calculate all node values...
 impl PointNode {
     fn recalc(&mut self) {
         let x = self.x_in.values_out();

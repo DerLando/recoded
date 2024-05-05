@@ -32,14 +32,16 @@ pub enum Nodes {
 }
 
 impl Nodes {
+    /// Recalculate all outputs of the node
+    /// and mark all it's inputs as clean
     pub fn solve(&mut self) {
         todo!()
     }
 
-    /// TODO: How to impl this? Do we store the ids on the nodes
-    /// themselves?
+    /// PinIds are just raw indices, not uuids, so we can
+    /// just enumerate the count :)
     pub fn out_ids(&self) -> impl Iterator<Item = OutputPinId> {
-        (0..1).into_iter().map(|_| OutputPinId(0))
+        (0..self.outputs()).into_iter().map(|n| OutputPinId(n))
     }
 }
 pub fn format_float(value: f64) -> String {

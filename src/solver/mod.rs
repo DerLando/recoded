@@ -29,19 +29,19 @@ struct NodeId(usize);
 
 impl From<egui_snarl::NodeId> for NodeId {
     fn from(value: egui_snarl::NodeId) -> Self {
-        todo!()
+        Self(value.0)
     }
 }
 
 impl From<egui_snarl::InPinId> for InputPinId {
     fn from(value: egui_snarl::InPinId) -> Self {
-        todo!()
+        Self(value.input)
     }
 }
 
 impl From<egui_snarl::OutPinId> for OutputPinId {
     fn from(value: egui_snarl::OutPinId) -> Self {
-        todo!()
+        Self(value.output)
     }
 }
 
@@ -50,7 +50,6 @@ fn get_downstream_nodes(
     node_id: NodeId,
     out_id: OutputPinId,
 ) -> impl Iterator<Item = (NodeId, InputPinId)> {
-    let node = &snarl[node_id];
     let pin = snarl.out_pin(egui_snarl::OutPinId {
         node: egui_snarl::NodeId(node_id.0),
         output: out_id.0,
@@ -98,34 +97,36 @@ impl<'a> std::ops::Index<NodeId> for egui_snarl::Snarl<Nodes> {
     type Output = Nodes;
 
     fn index(&self, index: NodeId) -> &Self::Output {
-        todo!()
+        let id = egui_snarl::NodeId(index.0);
+        &self[id]
     }
 }
 impl<'a> std::ops::IndexMut<NodeId> for egui_snarl::Snarl<Nodes> {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
-        todo!()
+        let id = egui_snarl::NodeId(index.0);
+        &mut self[id]
     }
 }
 impl<'a> From<&'a egui_snarl::Snarl<Nodes>> for NodeStoreRef<'a, egui_snarl::Snarl<Nodes>> {
     fn from(value: &'a egui_snarl::Snarl<Nodes>) -> Self {
-        todo!()
+        Self { inner: value }
     }
 }
-impl<'a> From<egui_snarl::Snarl<Nodes>> for NodeStoreRef<'a, egui_snarl::Snarl<Nodes>> {
-    fn from(value: egui_snarl::Snarl<Nodes>) -> Self {
-        todo!()
-    }
-}
+// impl<'a> From<egui_snarl::Snarl<Nodes>> for NodeStoreRef<'a, egui_snarl::Snarl<Nodes>> {
+//     fn from(value: egui_snarl::Snarl<Nodes>) -> Self {
+//         Self { inner: &value }
+//     }
+// }
 impl<'a> From<&'a mut egui_snarl::Snarl<Nodes>> for NodeStoreMut<'a, egui_snarl::Snarl<Nodes>> {
     fn from(value: &'a mut egui_snarl::Snarl<Nodes>) -> Self {
-        todo!()
+        Self { inner: value }
     }
 }
-impl<'a> From<egui_snarl::Snarl<Nodes>> for NodeStoreMut<'a, egui_snarl::Snarl<Nodes>> {
-    fn from(value: egui_snarl::Snarl<Nodes>) -> Self {
-        todo!()
-    }
-}
+// impl<'a> From<egui_snarl::Snarl<Nodes>> for NodeStoreMut<'a, egui_snarl::Snarl<Nodes>> {
+//     fn from(value: egui_snarl::Snarl<Nodes>) -> Self {
+//         todo!()
+//     }
+// }
 
 struct Marker {
     ranks: HashMap<usize, Vec<NodeId>>,
@@ -145,12 +146,14 @@ impl Marker {
     /// so we don't have to fetch data on all input params
     /// when solving. A node with 20 params where only one changed
     /// would be the example where this optimization makes sense
-    fn mark_nodes_from<'a, T>(&mut self, store: &T, node_id: NodeId)
+    fn mark_nodes_from<'a, T>(mut self, store: &T, node_id: NodeId) -> HashMap<usize, Vec<NodeId>>
     where
         T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology + 'a,
     {
         let store = NodeStoreRef { inner: store };
         self.mark_node_inner(&store, node_id, 0);
+
+        self.ranks
     }
 
     fn mark_node_inner<'a, T>(&mut self, store: &NodeStoreRef<'_, T>, node_id: NodeId, rank: usize)
@@ -212,6 +215,8 @@ pub struct Solver {
 
 #[cfg(test)]
 mod test {
+    use crate::nodes::{point::PointNode, range::RangeNode};
+
     use super::*;
 
     #[test]
@@ -228,5 +233,31 @@ mod test {
         assert_eq!(0, marker.get_rank(id).unwrap());
         marker.store_node_rank(id, 3);
         assert_eq!(3, marker.get_rank(id).unwrap());
+    }
+
+    #[test]
+    fn marker_should_mark_ranks() {
+        let mut snarl: egui_snarl::Snarl<Nodes> = egui_snarl::Snarl::new();
+        let node = super::Nodes::Range(RangeNode::default());
+        let range_id = snarl.insert_node(egui::Pos2::ZERO, node);
+        let node = super::Nodes::Point(PointNode::default());
+        let point_id = snarl.insert_node(egui::Pos2::ZERO, node);
+        let range_out_pin = egui_snarl::OutPinId {
+            node: range_id,
+            output: 0,
+        };
+        let point_in_pin = egui_snarl::InPinId {
+            node: point_id,
+            input: 0,
+        };
+        assert!(snarl.connect(range_out_pin, point_in_pin));
+
+        let range_id: NodeId = range_id.into();
+        let point_id: NodeId = point_id.into();
+        let marker = Marker::new();
+        let ranks = marker.mark_nodes_from(&snarl, range_id);
+
+        assert_eq!(range_id, ranks[&0][0]);
+        assert_eq!(point_id, ranks[&1][0]);
     }
 }

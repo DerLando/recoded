@@ -128,6 +128,16 @@ where
     }
 }
 
+/// TODO: Make inputs and outputs their own collections,
+/// so we can impl the draw methods on them directly using new traits
+/// and simplify/fast-forward implementations at the node level
+/// The problem with that is, that the pins are generic over their
+/// type, so we need to wrap them in a non-generic trait, so we
+/// can store them together in a backing array
+// pub struct Inputs<N: const usize> {
+//     pins: [InputPin<?>; N]
+// }
+
 #[cfg(test)]
 mod test {
     use super::*;
