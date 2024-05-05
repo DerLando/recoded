@@ -22,16 +22,10 @@ impl PointNode {
     fn needs_recalc(&self) -> bool {
         self.x_in.is_dirty() || self.y_in.is_dirty()
     }
-    pub fn point_out(&mut self) -> piet::kurbo::Point {
-        if self.needs_recalc() {
-            self.recalc();
-        }
+    pub fn point_out(&self) -> piet::kurbo::Point {
         self.point_out.value_out().map(|pt| *pt).unwrap_or_default()
     }
-    pub fn points_out(&mut self) -> impl Iterator<Item = &piet::kurbo::Point> {
-        if self.needs_recalc() {
-            self.recalc()
-        }
+    pub fn points_out(&self) -> impl Iterator<Item = &piet::kurbo::Point> {
         self.point_out.values_out().iter()
     }
 }

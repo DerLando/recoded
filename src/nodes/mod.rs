@@ -282,6 +282,13 @@ impl Nodes {
             _ => None,
         }
     }
+
+    pub fn try_get_points(&self) -> Option<Vec<piet::kurbo::Point>> {
+        match self {
+            Self::Point(node) => Some(node.points_out().map(|pt| *pt).collect::<Vec<_>>()),
+            _ => None,
+        }
+    }
 }
 
 /// General info for a node, every [`Node`] implementor

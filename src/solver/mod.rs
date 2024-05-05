@@ -25,7 +25,7 @@ use crate::{
 /// to a node store and run the whole solving pipeline at once.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct NodeId(usize);
+pub struct NodeId(usize);
 
 impl From<egui_snarl::NodeId> for NodeId {
     fn from(value: egui_snarl::NodeId) -> Self {
@@ -209,13 +209,16 @@ impl Marker {
     }
 }
 
-pub struct Solver {
-    nodes_ids: Vec<NodeId>,
+pub fn solve_starting_from<'a, T>(node_id: NodeId, store: &mut T)
+where
+    T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology + 'a,
+{
+    todo!()
 }
 
 #[cfg(test)]
 mod test {
-    use crate::nodes::{point::PointNode, range::RangeNode};
+    use crate::nodes::{point::PointNode, range::RangeNode, NodeDowncast};
 
     use super::*;
 
@@ -259,5 +262,48 @@ mod test {
 
         assert_eq!(range_id, ranks[&0][0]);
         assert_eq!(point_id, ranks[&1][0]);
+    }
+
+    #[test]
+    fn solver_should_solve_simple_setup() {
+        let mut snarl: egui_snarl::Snarl<Nodes> = egui_snarl::Snarl::new();
+        let node = super::Nodes::Range(RangeNode::default());
+        let range_id = snarl.insert_node(egui::Pos2::ZERO, node);
+        let node = super::Nodes::Point(PointNode::default());
+        let point_id = snarl.insert_node(egui::Pos2::ZERO, node);
+        let range_out_pin = egui_snarl::OutPinId {
+            node: range_id,
+            output: 0,
+        };
+        let point_in_pin = egui_snarl::InPinId {
+            node: point_id,
+            input: 0,
+        };
+        assert!(snarl.connect(range_out_pin, point_in_pin));
+
+        RangeNode::try_downcast_mut(snarl.get_node_mut(range_id).unwrap())
+            .unwrap()
+            .count = 10;
+
+        assert_eq!(
+            0,
+            snarl
+                .get_node(point_id)
+                .unwrap()
+                .try_get_points()
+                .unwrap()
+                .len()
+        );
+
+        solve_starting_from(NodeId::from(range_id), &mut snarl);
+        assert_eq!(
+            10,
+            snarl
+                .get_node(point_id)
+                .unwrap()
+                .try_get_points()
+                .unwrap()
+                .len()
+        );
     }
 }

@@ -8,7 +8,7 @@ use super::{InputNode, NodeInfo, Nodes};
 pub struct RangeNode {
     start: f64,
     step: f64,
-    count: usize,
+    pub(crate) count: usize,
 }
 
 impl RangeNode {
