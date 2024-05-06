@@ -1,19 +1,30 @@
 use egui_snarl::ui::PinInfo;
 
-use crate::nodes::NodeDowncast;
+use crate::{
+    nodes::NodeDowncast,
+    pins::{IPin, InputPin, OPin, OutputPin},
+};
 
 use super::{InputNode, NodeInfo, Nodes};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct RangeNode {
-    start: f64,
-    step: f64,
-    count: usize,
+    start_in: InputPin<f64>,
+    step_in: InputPin<f64>,
+    pub(crate) count_in: InputPin<usize>,
+    range_out: OutputPin<f64>,
 }
 
 impl RangeNode {
-    pub fn get_numbers(&self) -> impl Iterator<Item = f64> + '_ {
-        (0..self.count).map(|i| self.start + self.step * i as f64)
+    pub fn recalc(&mut self) {
+        let start = self.start_in.value_out().copied().unwrap_or_default();
+        let step = self.step_in.value_out().copied().unwrap_or_default();
+        let count = self.count_in.value_out().copied().unwrap_or_default();
+        self.range_out
+            .values_in((0..count).map(|i| start + step * i as f64));
+    }
+    pub fn get_numbers(&self) -> impl Iterator<Item = &f64> {
+        self.range_out.values_out().iter()
     }
 }
 /// Need to get fancy, since the node is stored
@@ -48,9 +59,10 @@ impl super::NodeDowncast for RangeNode {
 impl Default for RangeNode {
     fn default() -> Self {
         Self {
-            start: 0.0,
-            step: 1.0,
-            count: 10,
+            start_in: InputPin::default(),
+            step_in: InputPin::default(),
+            count_in: InputPin::default(),
+            range_out: OutputPin::default(),
         }
     }
 }
@@ -75,8 +87,8 @@ fn show_start_input(
     scale: f32,
     snarl: &mut egui_snarl::Snarl<Nodes>,
 ) -> PinInfo {
-    super::show_number_input("Start", pin, ui, scale, snarl, |id, snarl| {
-        &mut get_node_mut(snarl, id).start
+    super::show_input_for_number_pin("Start", pin, ui, scale, snarl, |id, snarl| {
+        &mut get_node_mut(snarl, id).start_in
     })
 }
 
@@ -86,8 +98,8 @@ fn show_step_input(
     scale: f32,
     snarl: &mut egui_snarl::Snarl<Nodes>,
 ) -> PinInfo {
-    super::show_number_input("Step", pin, ui, scale, snarl, |id, snarl| {
-        &mut get_node_mut(snarl, id).step
+    super::show_input_for_number_pin("Step", pin, ui, scale, snarl, |id, snarl| {
+        &mut get_node_mut(snarl, id).step_in
     })
 }
 
@@ -97,26 +109,9 @@ fn show_count_input(
     scale: f32,
     snarl: &mut egui_snarl::Snarl<Nodes>,
 ) -> PinInfo {
-    let info: PinInfo;
-    ui.label("Count");
-    match &*pin.remotes {
-        [] => {
-            ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin.id).count));
-            info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
-        }
-        [remote] => {
-            if let Some(value) = snarl[remote.node].try_get_float() {
-                get_node_mut(snarl, pin.id).count = value as usize;
-                ui.label(super::format_float(value));
-                info = PinInfo::square().with_fill(crate::NUMBER_COLOR);
-            } else {
-                ui.add(egui::DragValue::new(&mut get_node_mut(snarl, pin.id).count));
-                info = PinInfo::square().with_fill(crate::UNCONNECTED_COLOR);
-            }
-        }
-        _ => unreachable!(),
-    }
-    info
+    super::show_input_for_number_pin("Count", pin, ui, scale, snarl, |id, snarl| {
+        &mut get_node_mut(snarl, id).count_in
+    })
 }
 
 impl InputNode<Nodes> for RangeNode {
@@ -148,6 +143,10 @@ impl InputNode<Nodes> for RangeNode {
         );
         PinInfo::square().with_fill(crate::NUMBER_COLOR)
     }
+
+    fn values_in(&mut self, id: crate::pins::InputPinId, values: &crate::values::Values) {
+        todo!()
+    }
 }
 
 impl super::OutputNode<super::Nodes> for RangeNode {
@@ -158,5 +157,9 @@ impl super::OutputNode<super::Nodes> for RangeNode {
         snarl: &mut egui_snarl::Snarl<super::Nodes>,
     ) -> PinInfo {
         PinInfo::square().with_fill(crate::NUMBER_COLOR)
+    }
+
+    fn values_out(&self, id: crate::pins::OutputPinId) -> crate::values::Values {
+        crate::values::Values::Float(self.range_out.values_out().clone())
     }
 }

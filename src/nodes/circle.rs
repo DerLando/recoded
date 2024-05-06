@@ -1,24 +1,33 @@
 use egui_snarl::ui::PinInfo;
 
-use crate::shapes::Shapes;
+use crate::{
+    pins::{IPin, InputPin, OPin, OutputPin},
+    shapes::Shapes,
+};
 
-#[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Default)]
 pub struct CircleNode {
-    circle: piet::kurbo::Circle,
+    center_in: InputPin<piet::kurbo::Point>,
+    radius_in: InputPin<f64>,
+    circle_out: OutputPin<piet::kurbo::Circle>,
 }
 
 impl CircleNode {
-    pub fn radius_mut(&mut self) -> &mut f64 {
-        &mut self.circle.radius
+    pub fn recalc(&mut self) {
+        self.circle_out.values_in(
+            self.center_in
+                .values_out()
+                .iter()
+                .zip(self.radius_in.values_out())
+                .map(|(center, radius)| piet::kurbo::Circle::new(*center, *radius)),
+        )
     }
-    pub fn center_mut(&mut self) -> &mut piet::kurbo::Point {
-        &mut self.circle.center
-    }
-    pub fn circle_out(&self) -> &piet::kurbo::Circle {
-        &self.circle
-    }
-    pub fn shape_out(&self) -> Shapes {
-        Shapes::Circle(self.circle)
+    pub fn shapes_out(&self) -> impl Iterator<Item = Shapes> {
+        self.circle_out
+            .values_out()
+            .clone()
+            .into_iter()
+            .map(|circle| Shapes::Circle(circle))
     }
 }
 
@@ -57,11 +66,30 @@ impl super::InputNode<super::Nodes> for CircleNode {
     ) -> egui_snarl::ui::PinInfo {
         match pin.id.input {
             0 => super::show_point_input("Center", pin, ui, scale, snarl, |id, snarl| {
-                super::get_node_mut::<Self>(snarl, id.node).center_mut()
+                &mut super::get_node_mut::<Self>(snarl, id.node).center_in
             }),
-            1 => super::show_number_input("Radius", pin, ui, scale, snarl, |id, snarl| {
-                super::get_node_mut::<Self>(snarl, id.node).radius_mut()
+            1 => super::show_input_for_number_pin("Radius", pin, ui, scale, snarl, |id, snarl| {
+                &mut super::get_node_mut::<Self>(snarl, id.node).radius_in
             }),
+            _ => unreachable!(),
+        }
+    }
+
+    fn values_in(&mut self, id: crate::pins::InputPinId, values: &crate::values::Values) {
+        match id.0 {
+            0 => match values {
+                crate::values::Values::Point(pts) => self.center_in.values_in(pts.iter().cloned()),
+                _ => (),
+            },
+            1 => match values {
+                crate::values::Values::Float(numbers) => {
+                    self.radius_in.values_in(numbers.iter().cloned())
+                }
+                crate::values::Values::Int(numbers) => {
+                    self.radius_in.values_in(numbers.iter().cloned())
+                }
+                _ => (),
+            },
             _ => unreachable!(),
         }
     }
@@ -77,13 +105,8 @@ impl super::OutputNode<super::Nodes> for CircleNode {
         ui.label("Circle");
         PinInfo::triangle().with_fill(crate::SHAPE_COLOR)
     }
-}
-impl super::EmitterNode<Shapes> for CircleNode {
-    fn value_out(&self) -> Shapes {
-        Shapes::Circle(self.circle_out().to_owned())
-    }
 
-    fn values_out(&self) -> impl Iterator<Item = Shapes> + '_ {
-        (0..1).map(|_| self.value_out())
+    fn values_out(&self, id: crate::pins::OutputPinId) -> crate::values::Values {
+        crate::values::Values::Circle(self.circle_out.values_out().clone())
     }
 }

@@ -1,17 +1,11 @@
-#[derive(Default)]
-pub struct InputPinId(usize);
-#[derive(Default)]
-pub struct OutputPinId(usize);
+#[derive(Default, Clone, Copy)]
+pub struct InputPinId(pub usize);
+#[derive(Default, Clone, Copy)]
+pub struct OutputPinId(pub usize);
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct InputPin<T> {
     // id: InputPinId,
     data: PinData<T>,
-}
-
-impl<T> InputPin<T> {
-    pub fn is_dirty(&self) -> bool {
-        self.data.is_dirty
-    }
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
@@ -20,16 +14,9 @@ pub struct OutputPin<T> {
     data: PinData<T>,
 }
 
-impl<T> OutputPin<T> {
-    pub fn is_dirty(&self) -> bool {
-        self.data.is_dirty
-    }
-}
-
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct PinData<T> {
     data: Vec<T>,
-    is_dirty: bool,
 }
 
 pub trait IPin<T> {
@@ -44,28 +31,25 @@ pub trait OPin<T> {
 
 impl<T, D> IPin<T> for PinData<D>
 where
-    D: From<T> + PartialEq,
+    D: From<T>,
 {
     fn value_in(&mut self, value: T) {
         let value = D::from(value);
         if self.data.len() == 0 {
             self.data = vec![value];
-            self.is_dirty = true;
         } else {
-            self.is_dirty = value == self.data[0];
             self.data[0] = value;
         }
     }
 
     fn values_in(&mut self, values: impl Iterator<Item = T>) {
         self.data = values.map(|v| D::from(v)).collect::<Vec<_>>();
-        self.is_dirty = true;
     }
 }
 
 impl<T, D> IPin<T> for InputPin<D>
 where
-    D: From<T> + PartialEq,
+    D: From<T>,
 {
     fn value_in(&mut self, value: T) {
         self.data.value_in(value);
@@ -78,7 +62,7 @@ where
 
 impl<T, D> IPin<T> for OutputPin<D>
 where
-    D: From<T> + PartialEq,
+    D: From<T>,
 {
     fn value_in(&mut self, value: T) {
         self.data.value_in(value);
@@ -128,6 +112,16 @@ where
     }
 }
 
+/// TODO: Make inputs and outputs their own collections,
+/// so we can impl the draw methods on them directly using new traits
+/// and simplify/fast-forward implementations at the node level
+/// The problem with that is, that the pins are generic over their
+/// type, so we need to wrap them in a non-generic trait, so we
+/// can store them together in a backing array
+// pub struct Inputs<N: const usize> {
+//     pins: [InputPin<?>; N]
+// }
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -146,9 +140,7 @@ mod test {
             );
         }
         pub fn get_series_out(&mut self) -> &Vec<f64> {
-            if self.count.data.is_dirty || self.number.data.is_dirty {
-                self.recalc_series();
-            }
+            self.recalc_series();
             self.series_out.values_out()
         }
     }
@@ -167,9 +159,7 @@ mod test {
                 .values_in(self.number.values_out().iter().map(|v| *v * rhs))
         }
         fn get_number_out(&mut self) -> &Vec<f64> {
-            if self.number.data.is_dirty || self.rhs.data.is_dirty {
-                self.recalc();
-            }
+            self.recalc();
             self.number_out.values_out()
         }
     }

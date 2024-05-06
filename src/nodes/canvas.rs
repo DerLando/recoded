@@ -1,19 +1,37 @@
 use piet::RenderContext;
 
-use crate::shapes::Shapes;
+use crate::{
+    pins::{IPin, InputPin, OPin},
+    shapes::Shapes,
+    values::Values,
+};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct CanvasNode {
-    width: f64,
-    height: f64,
-    shapes: Vec<Shapes>,
+    width: InputPin<f64>,
+    height: InputPin<f64>,
+    shapes: InputPin<Shapes>,
+    image_buffer: Vec<u8>,
 }
 
 impl CanvasNode {
+    fn width(&self) -> f64 {
+        self.width.value_out().cloned().unwrap_or(400.0)
+    }
+
+    fn height(&self) -> f64 {
+        self.height.value_out().cloned().unwrap_or(300.0)
+    }
+
+    pub fn recalc(&mut self) {
+        self.image_buffer = self.draw();
+    }
+
     fn draw(&self) -> Vec<u8> {
-        let mut rc = piet_svg::RenderContext::new(piet::kurbo::Size::new(self.width, self.height));
+        let mut rc =
+            piet_svg::RenderContext::new(piet::kurbo::Size::new(self.width(), self.height()));
         rc.clear(None, piet::Color::WHITE);
-        for shape in &self.shapes {
+        for shape in self.shapes.values_out() {
             rc.stroke(shape.get_shape(), &piet::Color::BLACK, 1.0);
         }
         let mut buffer: Vec<u8> = Vec::new();
@@ -25,9 +43,10 @@ impl CanvasNode {
 impl Default for CanvasNode {
     fn default() -> Self {
         Self {
-            width: 400.0,
-            height: 300.0,
-            shapes: vec![Shapes::Circle(piet::kurbo::Circle::default())],
+            width: InputPin::default(),
+            height: InputPin::default(),
+            shapes: InputPin::default(),
+            image_buffer: Vec::new(),
         }
     }
 }
@@ -66,16 +85,46 @@ impl super::InputNode<super::Nodes> for CanvasNode {
         snarl: &mut egui_snarl::Snarl<super::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
         match pin.id.input {
-            0 => super::show_number_input("Width", pin, ui, scale, snarl, |id, snarl| {
+            0 => super::show_input_for_number_pin("Width", pin, ui, scale, snarl, |id, snarl| {
                 &mut super::get_node_mut::<Self>(snarl, id.node).width
             }),
-            1 => super::show_number_input("Height", pin, ui, scale, snarl, |id, snarl| {
+            1 => super::show_input_for_number_pin("Height", pin, ui, scale, snarl, |id, snarl| {
                 &mut super::get_node_mut::<Self>(snarl, id.node).height
             }),
-            // TODO: This input should take the whole list of shapes!
             2 => super::show_shape_input("Shapes", pin, ui, scale, snarl, |id, snarl| {
-                &mut super::get_node_mut::<Self>(snarl, id.node).shapes[0]
+                &mut super::get_node_mut::<Self>(snarl, id.node).shapes
             }),
+            _ => unreachable!(),
+        }
+    }
+
+    fn values_in(&mut self, id: crate::pins::InputPinId, values: &crate::values::Values) {
+        match id.0 {
+            0 => match values {
+                Values::Int(values) => self
+                    .width
+                    .value_in(values.iter().next().cloned().unwrap_or(400)),
+                Values::Float(values) => self
+                    .width
+                    .value_in(values.iter().next().cloned().unwrap_or(400.0)),
+                _ => (),
+            },
+            1 => match values {
+                Values::Int(values) => self
+                    .height
+                    .value_in(values.iter().next().cloned().unwrap_or(300)),
+                Values::Float(values) => self
+                    .height
+                    .value_in(values.iter().next().cloned().unwrap_or(300.0)),
+                _ => (),
+            },
+            2 => match values {
+                Values::Shape(values) => self.shapes.values_in(values.iter().cloned()),
+                Values::Circle(values) => self
+                    .shapes
+                    .values_in(values.iter().map(|c| Shapes::Circle(c.clone()))),
+                _ => (),
+            },
             _ => unreachable!(),
         }
     }
@@ -100,5 +149,9 @@ impl super::OutputNode<super::Nodes> for CanvasNode {
         // TODO: Bad for performance, but necessary to update the image. Would be better to somehow cache the image in the struct itself, so all inputs can refresh it on change
         ui.ctx().forget_image(&uri);
         egui_snarl::ui::PinInfo::triangle()
+    }
+
+    fn values_out(&self, id: crate::pins::OutputPinId) -> crate::values::Values {
+        todo!()
     }
 }

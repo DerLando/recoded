@@ -1,6 +1,11 @@
 use egui_snarl::ui::PinInfo;
 
-use crate::pins::{IPin, InputPin, OPin, OutputPin};
+use crate::{
+    pins::{IPin, InputPin, InputPinId, OPin, OutputPin},
+    values::Values,
+};
+
+use super::NodeInfo;
 
 #[derive(serde::Serialize, serde::Deserialize, Default)]
 pub struct PointNode {
@@ -9,45 +14,35 @@ pub struct PointNode {
     point_out: OutputPin<piet::kurbo::Point>,
 }
 
-/// TODO:
-/// I think showing inputs and outputs should not
-/// be the place where we recalc the node, but rather when
-/// we pull values from it, since recalculation
-/// could be forgotten in the inputs.
-/// I'm missing a general function in egui_snarl
-/// to call once per node...
-/// Maybe it's already time to create a custom solver
-/// That iterates the whole snarl back to front and makes
-/// sure to calculate all node values...
 impl PointNode {
-    fn recalc(&mut self) {
+    pub(crate) fn recalc(&mut self) {
         let x = self.x_in.values_out();
         let y = self.y_in.values_out();
         let pts = x
             .iter()
             .zip(y.iter())
             .map(|(x, y)| piet::kurbo::Point::new(*x, *y));
-        self.point_out.values_in(pts);
+        self.point_out.values_in(pts.clone());
+        println!("Solved points: {:?}", pts);
     }
-    fn needs_recalc(&self) -> bool {
-        self.x_in.is_dirty() || self.y_in.is_dirty()
-    }
-    pub fn point_out(&mut self) -> piet::kurbo::Point {
-        if self.needs_recalc() {
-            self.recalc();
-        }
+    pub fn point_out(&self) -> piet::kurbo::Point {
         self.point_out.value_out().map(|pt| *pt).unwrap_or_default()
     }
-    pub fn points_out(&mut self) -> impl Iterator<Item = &piet::kurbo::Point> {
-        if self.needs_recalc() {
-            self.recalc()
-        }
+    pub fn points_out(&self) -> impl Iterator<Item = &piet::kurbo::Point> {
         self.point_out.values_out().iter()
+    }
+
+    fn values_in_inner(pin: &mut InputPin<f64>, values: &crate::values::Values) {
+        match values {
+            crate::values::Values::Int(values) => pin.values_in(values.iter().map(|v| *v as f64)),
+            crate::values::Values::Float(values) => pin.values_in(values.iter().map(|v| *v)),
+            _ => unreachable!(),
+        }
     }
 }
 
 impl super::Node for PointNode {}
-impl super::NodeInfo for PointNode {
+impl NodeInfo for PointNode {
     fn inputs() -> usize {
         2
     }
@@ -91,6 +86,18 @@ impl super::InputNode<super::Nodes> for PointNode {
             _ => unreachable!(),
         }
     }
+
+    fn values_in(&mut self, id: InputPinId, values: &Values) {
+        if id.0 >= Self::inputs() {
+            return;
+        }
+
+        match id.0 {
+            0 => Self::values_in_inner(&mut self.x_in, values),
+            1 => Self::values_in_inner(&mut self.y_in, values),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl super::OutputNode<super::Nodes> for PointNode {
@@ -102,5 +109,9 @@ impl super::OutputNode<super::Nodes> for PointNode {
     ) -> egui_snarl::ui::PinInfo {
         ui.label("Point");
         PinInfo::circle().with_fill(crate::POINT_COLOR)
+    }
+
+    fn values_out(&self, id: crate::pins::OutputPinId) -> Values {
+        Values::Point(self.point_out.values_out().clone())
     }
 }

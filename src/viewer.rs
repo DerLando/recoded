@@ -46,9 +46,6 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Circle(_) => nodes::circle::CircleNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Canvas(_) => nodes::canvas::CanvasNode::show_input(pin, ui, scale, snarl),
-            nodes::Nodes::RepeatShape(_) => {
-                nodes::repeat::RepeatShapeNode::show_input(pin, ui, scale, snarl)
-            }
         }
     }
 
@@ -69,9 +66,6 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             }
             nodes::Nodes::Canvas(_) => {
                 nodes::canvas::CanvasNode::show_output(pin, ui, scale, snarl)
-            }
-            nodes::Nodes::RepeatShape(_) => {
-                nodes::repeat::RepeatShapeNode::show_output(pin, ui, scale, snarl)
             }
         }
     }
@@ -129,13 +123,6 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             snarl.insert_node(
                 pos,
                 nodes::Nodes::Canvas(nodes::canvas::CanvasNode::default()),
-            );
-            ui.close_menu();
-        }
-        if ui.button("RepeatShape").clicked() {
-            snarl.insert_node(
-                pos,
-                nodes::Nodes::RepeatShape(nodes::repeat::RepeatShapeNode::default()),
             );
             ui.close_menu();
         }
