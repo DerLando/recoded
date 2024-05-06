@@ -12,6 +12,7 @@ pub struct CanvasNode {
     height: InputPin<f64>,
     shapes: InputPin<Shapes>,
     image_buffer: Vec<u8>,
+    image_changed: bool,
 }
 
 impl CanvasNode {
@@ -25,6 +26,7 @@ impl CanvasNode {
 
     pub fn recalc(&mut self) {
         self.image_buffer = self.draw();
+        self.image_changed = true;
     }
 
     fn draw(&self) -> Vec<u8> {
@@ -36,6 +38,7 @@ impl CanvasNode {
         }
         let mut buffer: Vec<u8> = Vec::new();
         rc.write(&mut buffer).expect("Write worked");
+        println!("Drew new image");
         buffer
     }
 }
@@ -47,6 +50,7 @@ impl Default for CanvasNode {
             height: InputPin::default(),
             shapes: InputPin::default(),
             image_buffer: Vec::new(),
+            image_changed: false,
         }
     }
 }
@@ -136,18 +140,34 @@ impl super::OutputNode<super::Nodes> for CanvasNode {
         scale: f32,
         snarl: &mut egui_snarl::Snarl<super::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
+        let changed = super::get_node_mut::<Self>(snarl, pin.id.node).image_changed;
         let uri = format!("bytes://canvas{}.svg", pin.id.node.0);
-        let image = egui::Image::from_bytes(
-            uri.to_owned(),
-            super::get_node_mut::<Self>(snarl, pin.id.node).draw(),
-        )
-        .max_width(200.0 * scale)
-        .shrink_to_fit()
-        .show_loading_spinner(true);
+        if changed {
+            ui.ctx().forget_image(&uri);
+        }
+        let image = {
+            if changed {
+                egui::Image::from_bytes(
+                    uri.to_owned(),
+                    super::get_node_mut::<Self>(snarl, pin.id.node)
+                        .image_buffer
+                        .clone(),
+                )
+                .max_width(200.0 * scale)
+                .shrink_to_fit()
+                .show_loading_spinner(true)
+            } else {
+                egui::Image::from_uri(uri)
+                    .max_width(200.0 * scale)
+                    .shrink_to_fit()
+            }
+        };
         ui.add(image);
 
         // TODO: Bad for performance, but necessary to update the image. Would be better to somehow cache the image in the struct itself, so all inputs can refresh it on change
-        ui.ctx().forget_image(&uri);
+        if changed {
+            super::get_node_mut::<Self>(snarl, pin.id.node).image_changed = false;
+        }
         egui_snarl::ui::PinInfo::triangle()
     }
 
