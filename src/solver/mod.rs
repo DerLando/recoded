@@ -192,8 +192,6 @@ impl Marker {
         let node = &store.inner[node_id];
         for out_pin_id in node.out_ids() {
             for (downstream_node, _) in store.inner.get_downstream_inputs(node_id, out_pin_id) {
-                // TODO: Use the input pin id info here to mark
-                // the actual input that needs to recompute
                 self.mark_node_inner(store, downstream_node, rank + 1)
             }
         }
@@ -236,6 +234,10 @@ impl Marker {
     }
 }
 
+/// Solve a subgraph of nodes of the given [`T`] store
+/// starting from the given node id. All nodes which are direct
+/// children of the start node will be solved and subsequently alser
+/// trigger solving of their children
 pub fn solve_starting_from<'a, T>(node_id: NodeId, store: &mut T)
 where
     T: std::ops::IndexMut<NodeId, Output = Nodes> + DownStreamTopology + 'a,
@@ -277,7 +279,7 @@ where
             }
             let output = &store[id].values_out(out_id);
             for (node_id, in_id) in in_ids.into_iter() {
-                &mut store[node_id].push_inputs(in_id, output);
+                &mut store[node_id].values_in(in_id, output);
             }
         }
     }

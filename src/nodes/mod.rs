@@ -4,11 +4,12 @@ use egui_snarl::{ui::PinInfo, InPin, OutPin, Snarl};
 use crate::{
     pins::{IPin, InputPin, InputPinId, OPin, OutputPinId},
     shapes::Shapes,
+    values::Values,
 };
 
 use self::{
     canvas::CanvasNode, circle::CircleNode, constant_value::ConstantValueNode, point::PointNode,
-    range::RangeNode, repeat::RepeatShapeNode, sink::SinkNode,
+    range::RangeNode, sink::SinkNode,
 };
 
 pub mod canvas;
@@ -28,7 +29,6 @@ pub enum Nodes {
     Point(point::PointNode),
     Circle(circle::CircleNode),
     Canvas(canvas::CanvasNode),
-    RepeatShape(repeat::RepeatShapeNode),
 }
 
 impl Nodes {
@@ -36,44 +36,36 @@ impl Nodes {
     /// and mark all it's inputs as clean
     pub fn solve(&mut self) {
         match self {
-            Nodes::ConstantValueNode(_) => todo!(),
+            Nodes::ConstantValueNode(_) => (),
             Nodes::Sink(_) => (),
             Nodes::Range(node) => node.recalc(),
             Nodes::Point(node) => node.recalc(),
-            Nodes::Circle(_) => todo!(),
-            Nodes::Canvas(_) => todo!(),
-            Nodes::RepeatShape(_) => todo!(),
+            Nodes::Circle(node) => node.recalc(),
+            Nodes::Canvas(node) => node.recalc(),
         }
     }
 
-    pub fn push_inputs(&mut self, id: InputPinId, inputs: &crate::values::Values) {
+    pub fn values_in(&mut self, id: InputPinId, values: &crate::values::Values) {
         match self {
-            Nodes::ConstantValueNode(_) => todo!(),
+            Nodes::ConstantValueNode(_) => unreachable!(),
             Nodes::Sink(_) => (),
-            Nodes::Range(_) => todo!(),
-            Nodes::Point(node) => node.values_in(id, inputs),
-            Nodes::Circle(_) => todo!(),
-            Nodes::Canvas(_) => todo!(),
-            Nodes::RepeatShape(_) => todo!(),
+            Nodes::Range(node) => node.values_in(id, values),
+            Nodes::Point(node) => node.values_in(id, values),
+            Nodes::Circle(node) => node.values_in(id, values),
+            Nodes::Canvas(node) => node.values_in(id, values),
         }
     }
 
     pub fn values_out(&self, id: OutputPinId) -> crate::values::Values {
         match self {
-            Nodes::ConstantValueNode(_) => todo!(),
-            Nodes::Sink(_) => todo!(),
-            Nodes::Range(node) => node.values_out(),
-            Nodes::Point(node) => node.values_out(),
-            Nodes::Circle(_) => todo!(),
-            Nodes::Canvas(_) => todo!(),
-            Nodes::RepeatShape(_) => todo!(),
+            Nodes::ConstantValueNode(node) => Values::Float(vec![node.number_out()]),
+            Nodes::Sink(_) => unreachable!(),
+            Nodes::Range(node) => node.values_out(OutputPinId::default()),
+            Nodes::Point(node) => node.values_out(OutputPinId::default()),
+            Nodes::Circle(node) => node.values_out(id),
+            Nodes::Canvas(_) => unreachable!(),
         }
     }
-
-    /// TODO: This won't work, as both self and other are stored
-    /// in the same backing storage, so we can't have two references
-    /// inside easily...
-    pub fn pipe_into(&self, out_id: OutputPinId, other: &mut Self, in_id: InputPinId) {}
 
     /// PinIds are just raw indices, not uuids, so we can
     /// just enumerate the count :)
@@ -173,22 +165,10 @@ pub fn show_point_input(
     ui: &mut Ui,
     scale: f32,
     snarl: &mut Snarl<Nodes>,
-    update_fn: impl FnOnce(egui_snarl::InPinId, &mut Snarl<Nodes>) -> &mut piet::kurbo::Point,
+    update_fn: impl FnOnce(egui_snarl::InPinId, &mut Snarl<Nodes>) -> &mut InputPin<piet::kurbo::Point>,
 ) -> PinInfo {
     ui.label(title.as_ref());
-    match &*pin.remotes {
-        [] => PinInfo::square().with_fill(crate::POINT_COLOR),
-        [remote] => {
-            if let Some(value) = snarl[remote.node].try_get_point() {
-                *(update_fn(pin.id, snarl)) = value;
-                ui.label(format_point(value));
-                PinInfo::square().with_fill(crate::POINT_COLOR)
-            } else {
-                PinInfo::square().with_fill(crate::POINT_COLOR)
-            }
-        }
-        _ => unreachable!(),
-    }
+    PinInfo::square().with_fill(crate::POINT_COLOR)
 }
 
 pub fn show_shape_input(
@@ -197,21 +177,10 @@ pub fn show_shape_input(
     ui: &mut Ui,
     scale: f32,
     snarl: &mut Snarl<Nodes>,
-    update_fn: impl FnOnce(egui_snarl::InPinId, &mut Snarl<Nodes>) -> &mut Shapes,
+    update_fn: impl FnOnce(egui_snarl::InPinId, &mut Snarl<Nodes>) -> &mut InputPin<Shapes>,
 ) -> PinInfo {
     ui.label(title.as_ref());
-    match &*pin.remotes {
-        [] => PinInfo::square().with_fill(crate::SHAPE_COLOR),
-        [remote] => {
-            if let Some(value) = snarl[remote.node].try_get_shape() {
-                *(update_fn(pin.id, snarl)) = value;
-                PinInfo::square().with_fill(crate::SHAPE_COLOR)
-            } else {
-                PinInfo::square().with_fill(crate::SHAPE_COLOR)
-            }
-        }
-        _ => unreachable!(),
-    }
+    PinInfo::square().with_fill(crate::SHAPE_COLOR)
 }
 
 // pub fn show_shapes_input(
@@ -264,7 +233,6 @@ impl Nodes {
             Self::Point(_) => PointNode::inputs(),
             Self::Circle(_) => CircleNode::inputs(),
             Self::Canvas(_) => CanvasNode::inputs(),
-            Self::RepeatShape(_) => RepeatShapeNode::inputs(),
         }
     }
     pub fn outputs(&self) -> usize {
@@ -275,7 +243,6 @@ impl Nodes {
             Self::Point(_) => PointNode::outputs(),
             Self::Circle(_) => CircleNode::outputs(),
             Self::Canvas(_) => CanvasNode::outputs(),
-            Self::RepeatShape(_) => RepeatShapeNode::outputs(),
         }
     }
     pub fn title(&self) -> String {
@@ -286,7 +253,6 @@ impl Nodes {
             Self::Point(_) => PointNode::title(),
             Self::Circle(_) => CircleNode::title(),
             Self::Canvas(_) => CanvasNode::title(),
-            Self::RepeatShape(_) => RepeatShapeNode::title(),
         }
     }
     pub fn try_get_float(&self) -> Option<f64> {
@@ -312,16 +278,14 @@ impl Nodes {
 
     pub fn try_get_shape(&self) -> Option<Shapes> {
         match self {
-            Self::Circle(node) => Some(node.shape_out()),
-            Self::RepeatShape(node) => Some(node.value_out()),
+            Self::Circle(node) => node.shapes_out().next(),
             _ => None,
         }
     }
 
-    pub fn try_get_shapes(&self) -> Option<Vec<Shapes>> {
+    pub fn try_get_shapes(&self) -> Option<impl Iterator<Item = Shapes>> {
         match self {
-            Self::RepeatShape(node) => Some(node.values_out().collect::<Vec<_>>()),
-            Self::Circle(node) => Some(node.values_out().collect::<Vec<_>>()),
+            Self::Circle(node) => Some(node.shapes_out()),
             _ => None,
         }
     }
@@ -344,20 +308,10 @@ pub trait NodeInfo: Node {
 
 pub trait InputNode<T>: Node {
     fn show_input(pin: &InPin, ui: &mut Ui, scale: f32, snarl: &mut Snarl<T>) -> PinInfo;
+    fn values_in(&mut self, id: InputPinId, values: &Values);
 }
 
 pub trait OutputNode<T>: Node {
     fn show_output(pin: &OutPin, ui: &mut Ui, scale: f32, snarl: &mut Snarl<T>) -> PinInfo;
-}
-
-pub trait NumberEmitterNode {
-    fn try_get_number(&self) -> f64;
-    fn try_get_numbers(&self) -> impl Iterator<Item = f64> + '_;
-    // TODO: Maybe something to broadcast numbers?
-    // Or, alternatively, nodes can decide that on their inputs
-    // themselfes
-}
-pub trait EmitterNode<T> {
-    fn value_out(&self) -> T;
-    fn values_out(&self) -> impl Iterator<Item = T> + '_;
+    fn values_out(&self, id: OutputPinId) -> Values;
 }

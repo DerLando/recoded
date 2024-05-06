@@ -8,32 +8,15 @@ pub struct InputPin<T> {
     data: PinData<T>,
 }
 
-impl<T> InputPin<T> {
-    pub fn is_dirty(&self) -> bool {
-        self.data.is_dirty
-    }
-}
-
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct OutputPin<T> {
     // id: OutputPinId,
     data: PinData<T>,
 }
 
-impl<T> OutputPin<T> {
-    pub fn is_dirty(&self) -> bool {
-        self.data.is_dirty
-    }
-
-    pub fn get_values(&self) -> crate::values::Values {
-        todo!()
-    }
-}
-
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct PinData<T> {
     data: Vec<T>,
-    is_dirty: bool,
 }
 
 pub trait IPin<T> {
@@ -48,28 +31,25 @@ pub trait OPin<T> {
 
 impl<T, D> IPin<T> for PinData<D>
 where
-    D: From<T> + PartialEq,
+    D: From<T>,
 {
     fn value_in(&mut self, value: T) {
         let value = D::from(value);
         if self.data.len() == 0 {
             self.data = vec![value];
-            self.is_dirty = true;
         } else {
-            self.is_dirty = value == self.data[0];
             self.data[0] = value;
         }
     }
 
     fn values_in(&mut self, values: impl Iterator<Item = T>) {
         self.data = values.map(|v| D::from(v)).collect::<Vec<_>>();
-        self.is_dirty = true;
     }
 }
 
 impl<T, D> IPin<T> for InputPin<D>
 where
-    D: From<T> + PartialEq,
+    D: From<T>,
 {
     fn value_in(&mut self, value: T) {
         self.data.value_in(value);
@@ -82,7 +62,7 @@ where
 
 impl<T, D> IPin<T> for OutputPin<D>
 where
-    D: From<T> + PartialEq,
+    D: From<T>,
 {
     fn value_in(&mut self, value: T) {
         self.data.value_in(value);
@@ -160,9 +140,7 @@ mod test {
             );
         }
         pub fn get_series_out(&mut self) -> &Vec<f64> {
-            if self.count.data.is_dirty || self.number.data.is_dirty {
-                self.recalc_series();
-            }
+            self.recalc_series();
             self.series_out.values_out()
         }
     }
@@ -181,9 +159,7 @@ mod test {
                 .values_in(self.number.values_out().iter().map(|v| *v * rhs))
         }
         fn get_number_out(&mut self) -> &Vec<f64> {
-            if self.number.data.is_dirty || self.rhs.data.is_dirty {
-                self.recalc();
-            }
+            self.recalc();
             self.number_out.values_out()
         }
     }

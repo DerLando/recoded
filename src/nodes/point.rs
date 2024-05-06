@@ -32,26 +32,12 @@ impl PointNode {
         self.point_out.values_out().iter()
     }
 
-    pub fn values_in(&mut self, id: InputPinId, values: &crate::values::Values) {
-        if id.0 >= Self::inputs() {
-            return;
-        }
-
-        match id.0 {
-            0 => Self::values_in_inner(&mut self.x_in, values),
-            1 => Self::values_in_inner(&mut self.y_in, values),
-            _ => unreachable!(),
-        }
-    }
     fn values_in_inner(pin: &mut InputPin<f64>, values: &crate::values::Values) {
         match values {
             crate::values::Values::Int(values) => pin.values_in(values.iter().map(|v| *v as f64)),
             crate::values::Values::Float(values) => pin.values_in(values.iter().map(|v| *v)),
             _ => unreachable!(),
         }
-    }
-    pub fn values_out(&self) -> Values {
-        Values::Point(self.point_out.values_out().clone())
     }
 }
 
@@ -100,6 +86,18 @@ impl super::InputNode<super::Nodes> for PointNode {
             _ => unreachable!(),
         }
     }
+
+    fn values_in(&mut self, id: InputPinId, values: &Values) {
+        if id.0 >= Self::inputs() {
+            return;
+        }
+
+        match id.0 {
+            0 => Self::values_in_inner(&mut self.x_in, values),
+            1 => Self::values_in_inner(&mut self.y_in, values),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl super::OutputNode<super::Nodes> for PointNode {
@@ -111,5 +109,9 @@ impl super::OutputNode<super::Nodes> for PointNode {
     ) -> egui_snarl::ui::PinInfo {
         ui.label("Point");
         PinInfo::circle().with_fill(crate::POINT_COLOR)
+    }
+
+    fn values_out(&self, id: crate::pins::OutputPinId) -> Values {
+        Values::Point(self.point_out.values_out().clone())
     }
 }

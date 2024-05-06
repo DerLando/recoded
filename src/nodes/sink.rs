@@ -54,7 +54,7 @@ pub fn show_input(pin: &InPin, ui: &mut Ui, scale: f32, snarl: &mut Snarl<Nodes>
                 PinInfo::circle().with_fill(crate::POINT_COLOR)
             }
             Nodes::Circle(node) => {
-                ui.label(format!("{:?}", node.circle_out()));
+                ui.label(format!("{:?}", node.shapes_out().next()));
                 PinInfo::triangle().with_fill(crate::SHAPE_COLOR)
             }
             _ => unreachable!(),

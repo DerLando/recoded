@@ -23,10 +23,6 @@ impl RangeNode {
         self.range_out
             .values_in((0..count).map(|i| start + step * i as f64));
     }
-    pub fn values_out(&self) -> crate::values::Values {
-        crate::values::Values::Float(self.range_out.values_out().clone())
-    }
-
     pub fn get_numbers(&self) -> impl Iterator<Item = &f64> {
         self.range_out.values_out().iter()
     }
@@ -147,6 +143,10 @@ impl InputNode<Nodes> for RangeNode {
         );
         PinInfo::square().with_fill(crate::NUMBER_COLOR)
     }
+
+    fn values_in(&mut self, id: crate::pins::InputPinId, values: &crate::values::Values) {
+        todo!()
+    }
 }
 
 impl super::OutputNode<super::Nodes> for RangeNode {
@@ -157,5 +157,9 @@ impl super::OutputNode<super::Nodes> for RangeNode {
         snarl: &mut egui_snarl::Snarl<super::Nodes>,
     ) -> PinInfo {
         PinInfo::square().with_fill(crate::NUMBER_COLOR)
+    }
+
+    fn values_out(&self, id: crate::pins::OutputPinId) -> crate::values::Values {
+        crate::values::Values::Float(self.range_out.values_out().clone())
     }
 }

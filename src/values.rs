@@ -20,12 +20,14 @@ use crate::pins::{IPin, InputPin, OPin, OutputPin};
 /// ```
 ///
 pub enum Values {
-    /// Maybe this should be u64 instead...
-    Int(Vec<usize>),
+    /// This is a u32, since u32 and f64 can be converted into eachother
+    Int(Vec<u32>),
     Float(Vec<f64>),
     String(Vec<String>),
     Bool(Vec<bool>),
     Point(Vec<piet::kurbo::Point>),
+    Circle(Vec<piet::kurbo::Circle>),
+    Shape(Vec<crate::shapes::Shapes>),
     Custom(Vec<Box<dyn Any>>),
     // TODO: How can we allow custom types here? Box<dyn Any>?
     // Custom(Vec<T>),
@@ -38,14 +40,4 @@ where
     C: From<P> + PartialEq,
 {
     consumer.values_in(producer.values_out().into_iter().cloned());
-}
-
-pub trait ValuePipe<T> {
-    fn pipe_values_into(&self, pin: &mut InputPin<T>);
-}
-
-impl<T> ValuePipe<T> for OutputPin<T> {
-    fn pipe_values_into(&self, pin: &mut InputPin<T>) {
-        todo!()
-    }
 }
