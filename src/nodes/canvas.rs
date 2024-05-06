@@ -33,6 +33,9 @@ impl CanvasNode {
         let mut rc =
             piet_svg::RenderContext::new(piet::kurbo::Size::new(self.width(), self.height()));
         rc.clear(None, piet::Color::WHITE);
+        rc.save();
+        // TODO: Why is clipping in percent? I don't get it...
+        rc.clip(piet::kurbo::Rect::new(0.0, 0.0, 100.0, 100.0));
         for shape in self.shapes.values_out() {
             rc.stroke(shape.get_shape(), &piet::Color::BLACK, 1.0);
         }
@@ -142,6 +145,8 @@ impl super::OutputNode<super::Nodes> for CanvasNode {
     ) -> egui_snarl::ui::PinInfo {
         let changed = super::get_node_mut::<Self>(snarl, pin.id.node).image_changed;
         let uri = format!("bytes://canvas{}.svg", pin.id.node.0);
+        let width = super::get_node_mut::<Self>(snarl, pin.id.node).width();
+        let height = super::get_node_mut::<Self>(snarl, pin.id.node).height();
         if changed {
             ui.ctx().forget_image(&uri);
         }
@@ -153,18 +158,15 @@ impl super::OutputNode<super::Nodes> for CanvasNode {
                         .image_buffer
                         .clone(),
                 )
-                .max_width(200.0 * scale)
-                .shrink_to_fit()
                 .show_loading_spinner(true)
             } else {
                 egui::Image::from_uri(uri)
-                    .max_width(200.0 * scale)
-                    .shrink_to_fit()
             }
         };
-        ui.add(image);
+        // TODO: Image is scaled weirdly, I don't get why :/
+        // At least clipping works properly-ish now...
+        ui.add(image.max_size(egui::Vec2::new(width as f32 * scale, height as f32 * scale)));
 
-        // TODO: Bad for performance, but necessary to update the image. Would be better to somehow cache the image in the struct itself, so all inputs can refresh it on change
         if changed {
             super::get_node_mut::<Self>(snarl, pin.id.node).image_changed = false;
         }
