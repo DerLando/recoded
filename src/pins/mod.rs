@@ -1,6 +1,6 @@
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct InputPinId(pub usize);
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct OutputPinId(pub usize);
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct InputPin<T> {
@@ -23,6 +23,10 @@ pub struct OutputPin<T> {
 impl<T> OutputPin<T> {
     pub fn is_dirty(&self) -> bool {
         self.data.is_dirty
+    }
+
+    pub fn get_values(&self) -> crate::values::Values {
+        todo!()
     }
 }
 

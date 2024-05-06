@@ -2,7 +2,7 @@ use egui::Ui;
 use egui_snarl::{ui::PinInfo, InPin, OutPin, Snarl};
 
 use crate::{
-    pins::{IPin, InputPin, OPin, OutputPinId},
+    pins::{IPin, InputPin, InputPinId, OPin, OutputPinId},
     shapes::Shapes,
 };
 
@@ -35,8 +35,45 @@ impl Nodes {
     /// Recalculate all outputs of the node
     /// and mark all it's inputs as clean
     pub fn solve(&mut self) {
-        todo!()
+        match self {
+            Nodes::ConstantValueNode(_) => todo!(),
+            Nodes::Sink(_) => todo!(),
+            Nodes::Range(node) => (),
+            Nodes::Point(node) => node.recalc(),
+            Nodes::Circle(_) => todo!(),
+            Nodes::Canvas(_) => todo!(),
+            Nodes::RepeatShape(_) => todo!(),
+        }
     }
+
+    pub fn push_inputs(&mut self, id: InputPinId, inputs: &crate::values::Values) {
+        match self {
+            Nodes::ConstantValueNode(_) => todo!(),
+            Nodes::Sink(_) => todo!(),
+            Nodes::Range(_) => todo!(),
+            Nodes::Point(node) => node.values_in(id, inputs),
+            Nodes::Circle(_) => todo!(),
+            Nodes::Canvas(_) => todo!(),
+            Nodes::RepeatShape(_) => todo!(),
+        }
+    }
+
+    pub fn values_out(&self, id: OutputPinId) -> crate::values::Values {
+        match self {
+            Nodes::ConstantValueNode(_) => todo!(),
+            Nodes::Sink(_) => todo!(),
+            Nodes::Range(node) => node.values_out(),
+            Nodes::Point(_) => todo!(),
+            Nodes::Circle(_) => todo!(),
+            Nodes::Canvas(_) => todo!(),
+            Nodes::RepeatShape(_) => todo!(),
+        }
+    }
+
+    /// TODO: This won't work, as both self and other are stored
+    /// in the same backing storage, so we can't have two references
+    /// inside easily...
+    pub fn pipe_into(&self, out_id: OutputPinId, other: &mut Self, in_id: InputPinId) {}
 
     /// PinIds are just raw indices, not uuids, so we can
     /// just enumerate the count :)

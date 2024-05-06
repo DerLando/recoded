@@ -14,6 +14,7 @@ mod nodes;
 mod pins;
 mod shapes;
 mod solver;
+mod values;
 mod viewer;
 
 const NUMBER_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 255, 0);

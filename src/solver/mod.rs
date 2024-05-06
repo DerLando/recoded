@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::{
     nodes::Nodes,
@@ -128,15 +128,42 @@ impl<'a> From<&'a mut egui_snarl::Snarl<Nodes>> for NodeStoreMut<'a, egui_snarl:
 //     }
 // }
 
+/// TODO: Move ranking logic into own struct, out
+/// from marker, where it currently lives in...
+struct Ranks {
+    storage: BTreeMap<usize, Vec<NodeId>>,
+}
+
+impl Ranks {
+    pub fn new() -> Self {
+        Self {
+            storage: BTreeMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, rank: usize, id: NodeId) {
+        self.storage
+            .entry(rank)
+            .and_modify(|ids| ids.push(id))
+            .or_insert(vec![id]);
+    }
+
+    // pub fn remove(&mut self, rank: usize, id: NodeId) {
+    //     self.storage
+    //         .entry(key)
+    //         .and_modify(|ids| ids.remove(ids.iter().position(|i| *i == id)));
+    // }
+}
+
 struct Marker {
-    ranks: HashMap<usize, Vec<NodeId>>,
+    ranks: BTreeMap<usize, Vec<NodeId>>,
     rank_by_node: HashMap<NodeId, usize>,
 }
 
 impl Marker {
     pub fn new() -> Self {
         Self {
-            ranks: HashMap::new(),
+            ranks: BTreeMap::new(),
             rank_by_node: HashMap::new(),
         }
     }
@@ -146,7 +173,7 @@ impl Marker {
     /// so we don't have to fetch data on all input params
     /// when solving. A node with 20 params where only one changed
     /// would be the example where this optimization makes sense
-    fn mark_nodes_from<'a, T>(mut self, store: &T, node_id: NodeId) -> HashMap<usize, Vec<NodeId>>
+    fn mark_nodes_from<'a, T>(mut self, store: &T, node_id: NodeId) -> BTreeMap<usize, Vec<NodeId>>
     where
         T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology + 'a,
     {
@@ -211,9 +238,49 @@ impl Marker {
 
 pub fn solve_starting_from<'a, T>(node_id: NodeId, store: &mut T)
 where
-    T: std::ops::Index<NodeId, Output = Nodes> + DownStreamTopology + 'a,
+    T: std::ops::IndexMut<NodeId, Output = Nodes> + DownStreamTopology + 'a,
 {
-    todo!()
+    let marker = Marker::new();
+    let ranks = marker.mark_nodes_from(store, node_id);
+
+    if ranks.len() == 0 {
+        return;
+    }
+
+    for nodes in ranks.into_values() {
+        solve_nodes(store, nodes);
+    }
+}
+
+fn solve_nodes<'a, T>(store: &mut T, nodes: Vec<NodeId>)
+where
+    T: std::ops::IndexMut<NodeId, Output = Nodes> + DownStreamTopology + 'a,
+{
+    for id in nodes {
+        &mut store[id].solve();
+
+        // Need to collect here, so we don't keep store borrowed
+        // shouldn't be too many outputs anyway
+        let out_ids = store[id].out_ids().collect::<Vec<_>>();
+
+        for out_id in out_ids.into_iter() {
+            // TODO: Need some kind of type hint here...
+            // TODO: Alternatively, the type could be an enum instead
+            // where we wrap all the simple datatypes and everything
+            // else get's stored as a 'custom' variant, where we
+            // require the type to be 'Copy' and just use a pointer
+            let in_ids = store.get_downstream_inputs(id, out_id).collect::<Vec<_>>();
+            if in_ids.len() == 0 {
+                // No downstream node connected,
+                // so we can continue early
+                continue;
+            }
+            let output = &store[id].values_out(out_id);
+            for (node_id, in_id) in in_ids.into_iter() {
+                &mut store[node_id].push_inputs(in_id, output);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -275,11 +342,20 @@ mod test {
             node: range_id,
             output: 0,
         };
-        let point_in_pin = egui_snarl::InPinId {
-            node: point_id,
-            input: 0,
-        };
-        assert!(snarl.connect(range_out_pin, point_in_pin));
+        assert!(snarl.connect(
+            range_out_pin,
+            egui_snarl::InPinId {
+                node: point_id,
+                input: 0
+            }
+        ));
+        assert!(snarl.connect(
+            range_out_pin,
+            egui_snarl::InPinId {
+                node: point_id,
+                input: 1
+            }
+        ));
 
         RangeNode::try_downcast_mut(snarl.get_node_mut(range_id).unwrap())
             .unwrap()

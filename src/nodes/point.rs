@@ -2,6 +2,8 @@ use egui_snarl::ui::PinInfo;
 
 use crate::pins::{IPin, InputPin, InputPinId, OPin, OutputPin};
 
+use super::NodeInfo;
+
 #[derive(serde::Serialize, serde::Deserialize, Default)]
 pub struct PointNode {
     x_in: InputPin<f64>,
@@ -10,7 +12,7 @@ pub struct PointNode {
 }
 
 impl PointNode {
-    fn recalc(&mut self) {
+    pub(crate) fn recalc(&mut self) {
         let x = self.x_in.values_out();
         let y = self.y_in.values_out();
         let pts = x
@@ -28,10 +30,29 @@ impl PointNode {
     pub fn points_out(&self) -> impl Iterator<Item = &piet::kurbo::Point> {
         self.point_out.values_out().iter()
     }
+
+    pub fn values_in(&mut self, id: InputPinId, values: &crate::values::Values) {
+        if id.0 >= Self::inputs() {
+            return;
+        }
+
+        match id.0 {
+            0 => Self::values_in_inner(&mut self.x_in, values),
+            1 => Self::values_in_inner(&mut self.y_in, values),
+            _ => unreachable!(),
+        }
+    }
+    fn values_in_inner(pin: &mut InputPin<f64>, values: &crate::values::Values) {
+        match values {
+            crate::values::Values::Int(values) => pin.values_in(values.iter().map(|v| *v as f64)),
+            crate::values::Values::Float(values) => pin.values_in(values.iter().map(|v| *v)),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl super::Node for PointNode {}
-impl super::NodeInfo for PointNode {
+impl NodeInfo for PointNode {
     fn inputs() -> usize {
         2
     }

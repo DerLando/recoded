@@ -15,6 +15,9 @@ impl RangeNode {
     pub fn get_numbers(&self) -> impl Iterator<Item = f64> + '_ {
         (0..self.count).map(|i| self.start + self.step * i as f64)
     }
+    pub fn values_out(&self) -> crate::values::Values {
+        crate::values::Values::Float(self.get_numbers().collect::<Vec<_>>())
+    }
 }
 /// Need to get fancy, since the node is stored
 /// inside of the snarl, so if we bind it to a variable
