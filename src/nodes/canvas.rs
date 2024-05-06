@@ -29,6 +29,20 @@ impl CanvasNode {
         self.image_changed = true;
     }
 
+    fn draw_inner(&self) -> piet_svg::RenderContext {
+        let mut rc =
+            piet_svg::RenderContext::new(piet::kurbo::Size::new(self.width(), self.height()));
+        rc.clear(None, piet::Color::WHITE);
+        rc.save();
+        // TODO: Why is clipping in percent? I don't get it...
+        rc.clip(piet::kurbo::Rect::new(0.0, 0.0, 100.0, 100.0));
+        for shape in self.shapes.values_out() {
+            rc.stroke(shape.get_shape(), &piet::Color::BLACK, 1.0);
+        }
+        rc.restore();
+        rc
+    }
+
     fn draw(&self) -> Vec<u8> {
         let mut rc =
             piet_svg::RenderContext::new(piet::kurbo::Size::new(self.width(), self.height()));
@@ -43,6 +57,12 @@ impl CanvasNode {
         rc.write(&mut buffer).expect("Write worked");
         println!("Drew new image");
         buffer
+    }
+
+    pub fn save(&self, path: &str) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut rc = self.draw_inner();
+        rc.write(file).unwrap();
     }
 }
 

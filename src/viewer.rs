@@ -30,6 +30,14 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         if ui.button("Delete").clicked() {
             snarl.remove_node(node);
         };
+        match &mut snarl[node] {
+            nodes::Nodes::Canvas(canvas) => {
+                if ui.button("Save").clicked() {
+                    canvas.save("out.svg");
+                }
+            }
+            _ => (),
+        }
     }
 
     fn show_input(
