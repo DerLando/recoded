@@ -165,7 +165,9 @@ impl super::OutputNode<super::Nodes> for CanvasNode {
         };
         // TODO: Image is scaled weirdly, I don't get why :/
         // At least clipping works properly-ish now...
-        ui.add(image.max_size(egui::Vec2::new(width as f32 * scale, height as f32 * scale)));
+        ui.add(
+            image.fit_to_exact_size(egui::Vec2::new(width as f32 * scale, height as f32 * scale)),
+        );
 
         if changed {
             super::get_node_mut::<Self>(snarl, pin.id.node).image_changed = false;

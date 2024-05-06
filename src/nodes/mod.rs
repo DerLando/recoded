@@ -8,8 +8,12 @@ use crate::{
 };
 
 use self::{
-    canvas::CanvasNode, circle::CircleNode, constant_value::ConstantValueNode, point::PointNode,
-    range::RangeNode, sink::SinkNode,
+    canvas::CanvasNode,
+    circle::CircleNode,
+    constant_value::ConstantValueNode,
+    point::{PointNode, PointPolarNode},
+    range::RangeNode,
+    sink::SinkNode,
 };
 
 pub mod canvas;
@@ -29,6 +33,7 @@ pub enum Nodes {
     Point(point::PointNode),
     Circle(circle::CircleNode),
     Canvas(canvas::CanvasNode),
+    PointPolar(point::PointPolarNode),
 }
 
 impl Nodes {
@@ -42,6 +47,7 @@ impl Nodes {
             Nodes::Point(node) => node.recalc(),
             Nodes::Circle(node) => node.recalc(),
             Nodes::Canvas(node) => node.recalc(),
+            Nodes::PointPolar(node) => node.recalc(),
         }
     }
 
@@ -53,6 +59,7 @@ impl Nodes {
             Nodes::Point(node) => node.values_in(id, values),
             Nodes::Circle(node) => node.values_in(id, values),
             Nodes::Canvas(node) => node.values_in(id, values),
+            Nodes::PointPolar(node) => node.values_in(id, values),
         }
     }
 
@@ -64,6 +71,7 @@ impl Nodes {
             Nodes::Point(node) => node.values_out(OutputPinId::default()),
             Nodes::Circle(node) => node.values_out(id),
             Nodes::Canvas(_) => unreachable!(),
+            Nodes::PointPolar(node) => node.values_out(id),
         }
     }
 
@@ -233,6 +241,7 @@ impl Nodes {
             Self::Point(_) => PointNode::inputs(),
             Self::Circle(_) => CircleNode::inputs(),
             Self::Canvas(_) => CanvasNode::inputs(),
+            Self::PointPolar(_) => PointPolarNode::inputs(),
         }
     }
     pub fn outputs(&self) -> usize {
@@ -243,6 +252,7 @@ impl Nodes {
             Self::Point(_) => PointNode::outputs(),
             Self::Circle(_) => CircleNode::outputs(),
             Self::Canvas(_) => CanvasNode::outputs(),
+            Self::PointPolar(_) => PointPolarNode::outputs(),
         }
     }
     pub fn title(&self) -> String {
@@ -253,6 +263,7 @@ impl Nodes {
             Self::Point(_) => PointNode::title(),
             Self::Circle(_) => CircleNode::title(),
             Self::Canvas(_) => CanvasNode::title(),
+            Self::PointPolar(_) => PointPolarNode::title(),
         }
     }
     pub fn try_get_float(&self) -> Option<f64> {
