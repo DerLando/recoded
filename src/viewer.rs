@@ -57,7 +57,9 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
         match &mut snarl[pin.id.node] {
-            nodes::Nodes::ConstantValueNode(ref mut node) => node.show_output(ui),
+            nodes::Nodes::ConstantValueNode(ref mut node) => {
+                nodes::constant_value::ConstantValueNode::show_output(pin, ui, scale, snarl)
+            }
             nodes::Nodes::Sink(_) => unreachable!(),
             nodes::Nodes::Range(_) => nodes::range::RangeNode::show_output(pin, ui, scale, snarl),
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_output(pin, ui, scale, snarl),

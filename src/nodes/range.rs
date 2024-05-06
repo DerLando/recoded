@@ -2,7 +2,8 @@ use egui_snarl::ui::PinInfo;
 
 use crate::{
     nodes::NodeDowncast,
-    pins::{IPin, InputPin, OPin, OutputPin},
+    pins::{IPin, InputPin, InputPinId, OPin, OutputPin},
+    values::Values,
 };
 
 use super::{InputNode, NodeInfo, Nodes};
@@ -145,7 +146,46 @@ impl InputNode<Nodes> for RangeNode {
     }
 
     fn values_in(&mut self, id: crate::pins::InputPinId, values: &crate::values::Values) {
-        todo!()
+        match id.0 {
+            0 => match values {
+                Values::Int(values) => self
+                    .start_in
+                    .value_in(values.iter().next().cloned().unwrap_or(0)),
+                Values::Float(values) => self
+                    .start_in
+                    .value_in(values.iter().next().cloned().unwrap_or(0.0)),
+                _ => (),
+            },
+            1 => match values {
+                Values::Int(values) => self
+                    .step_in
+                    .value_in(values.iter().next().cloned().unwrap_or(0)),
+                Values::Float(values) => self
+                    .step_in
+                    .value_in(values.iter().next().cloned().unwrap_or(0.0)),
+                _ => (),
+            },
+            2 => match values {
+                Values::Int(values) => self.count_in.value_in(
+                    values
+                        .iter()
+                        .next()
+                        .cloned()
+                        .map(|v| usize::try_from(v).unwrap_or_default())
+                        .unwrap_or(0),
+                ),
+                Values::Float(values) => self.count_in.value_in(
+                    values
+                        .iter()
+                        .next()
+                        .cloned()
+                        .map(|v| v.round() as usize)
+                        .unwrap_or_default(),
+                ),
+                _ => (),
+            },
+            _ => unreachable!(),
+        }
     }
 }
 
