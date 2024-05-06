@@ -25,6 +25,7 @@ pub enum Values {
     Float(Vec<f64>),
     String(Vec<String>),
     Bool(Vec<bool>),
+    Point(Vec<piet::kurbo::Point>),
     Custom(Vec<Box<dyn Any>>),
     // TODO: How can we allow custom types here? Box<dyn Any>?
     // Custom(Vec<T>),

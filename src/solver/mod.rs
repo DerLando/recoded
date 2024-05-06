@@ -285,7 +285,10 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::nodes::{point::PointNode, range::RangeNode, NodeDowncast};
+    use crate::{
+        nodes::{point::PointNode, range::RangeNode, NodeDowncast},
+        pins::IPin,
+    };
 
     use super::*;
 
@@ -359,7 +362,8 @@ mod test {
 
         RangeNode::try_downcast_mut(snarl.get_node_mut(range_id).unwrap())
             .unwrap()
-            .count = 10;
+            .count_in
+            .value_in(10u8);
 
         assert_eq!(
             0,

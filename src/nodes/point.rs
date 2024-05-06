@@ -1,6 +1,9 @@
 use egui_snarl::ui::PinInfo;
 
-use crate::pins::{IPin, InputPin, InputPinId, OPin, OutputPin};
+use crate::{
+    pins::{IPin, InputPin, InputPinId, OPin, OutputPin},
+    values::Values,
+};
 
 use super::NodeInfo;
 
@@ -19,10 +22,8 @@ impl PointNode {
             .iter()
             .zip(y.iter())
             .map(|(x, y)| piet::kurbo::Point::new(*x, *y));
-        self.point_out.values_in(pts);
-    }
-    fn needs_recalc(&self) -> bool {
-        self.x_in.is_dirty() || self.y_in.is_dirty()
+        self.point_out.values_in(pts.clone());
+        println!("Solved points: {:?}", pts);
     }
     pub fn point_out(&self) -> piet::kurbo::Point {
         self.point_out.value_out().map(|pt| *pt).unwrap_or_default()
@@ -48,6 +49,9 @@ impl PointNode {
             crate::values::Values::Float(values) => pin.values_in(values.iter().map(|v| *v)),
             _ => unreachable!(),
         }
+    }
+    pub fn values_out(&self) -> Values {
+        Values::Point(self.point_out.values_out().clone())
     }
 }
 

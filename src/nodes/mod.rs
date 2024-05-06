@@ -37,8 +37,8 @@ impl Nodes {
     pub fn solve(&mut self) {
         match self {
             Nodes::ConstantValueNode(_) => todo!(),
-            Nodes::Sink(_) => todo!(),
-            Nodes::Range(node) => (),
+            Nodes::Sink(_) => (),
+            Nodes::Range(node) => node.recalc(),
             Nodes::Point(node) => node.recalc(),
             Nodes::Circle(_) => todo!(),
             Nodes::Canvas(_) => todo!(),
@@ -49,7 +49,7 @@ impl Nodes {
     pub fn push_inputs(&mut self, id: InputPinId, inputs: &crate::values::Values) {
         match self {
             Nodes::ConstantValueNode(_) => todo!(),
-            Nodes::Sink(_) => todo!(),
+            Nodes::Sink(_) => (),
             Nodes::Range(_) => todo!(),
             Nodes::Point(node) => node.values_in(id, inputs),
             Nodes::Circle(_) => todo!(),
@@ -63,7 +63,7 @@ impl Nodes {
             Nodes::ConstantValueNode(_) => todo!(),
             Nodes::Sink(_) => todo!(),
             Nodes::Range(node) => node.values_out(),
-            Nodes::Point(_) => todo!(),
+            Nodes::Point(node) => node.values_out(),
             Nodes::Circle(_) => todo!(),
             Nodes::Canvas(_) => todo!(),
             Nodes::RepeatShape(_) => todo!(),
@@ -129,22 +129,28 @@ pub fn show_input_for_number_pin<N>(
 where
     N: eframe::emath::Numeric,
 {
-    fn add_dragvalue_for_pin<N: eframe::emath::Numeric>(ui: &mut Ui, in_pin: &mut InputPin<N>) {
+    fn add_dragvalue_for_pin<N: eframe::emath::Numeric>(
+        ui: &mut Ui,
+        in_pin: &mut InputPin<N>,
+    ) -> bool {
+        let mut changed = false;
         let drag_value = egui::DragValue::from_get_set(|v| {
-            println!("{:?}", v);
             if let Some(v) = v {
                 in_pin.value_in(eframe::emath::Numeric::from_f64(v));
+                changed = true;
             }
-            println!("{:?}", in_pin.value_out().map(|n| n.to_f64()));
             in_pin.value_out().map(|n| n.to_f64()).unwrap_or_default()
         });
         ui.add(drag_value);
+        changed
     }
 
     ui.label(title.as_ref());
     match &*pin.remotes {
         [] => {
-            add_dragvalue_for_pin(ui, update_fn(pin.id, snarl));
+            if add_dragvalue_for_pin(ui, update_fn(pin.id, snarl)) {
+                crate::solver::solve_starting_from(pin.id.node.into(), snarl)
+            }
             PinInfo::square().with_fill(crate::NUMBER_COLOR)
         }
         [remote] => {
@@ -286,14 +292,14 @@ impl Nodes {
     pub fn try_get_float(&self) -> Option<f64> {
         match self {
             Self::ConstantValueNode(node) => Some(node.number_out()),
-            Self::Range(node) => node.get_numbers().next(),
+            Self::Range(node) => node.get_numbers().next().cloned(),
             _ => None,
         }
     }
     pub fn try_get_floats(&self) -> Option<Vec<f64>> {
         match self {
             Self::ConstantValueNode(node) => Some(vec![node.number_out()]),
-            Self::Range(node) => Some(node.get_numbers().collect::<Vec<_>>()),
+            Self::Range(node) => Some(node.get_numbers().cloned().collect::<Vec<_>>()),
             _ => None,
         }
     }
