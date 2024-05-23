@@ -12,6 +12,7 @@ pub struct CanvasNode {
     height: InputPin<f64>,
     shapes: InputPin<Shapes>,
     image_buffer: Vec<u8>,
+    image_changed: bool,
 }
 
 impl CanvasNode {
@@ -25,18 +26,43 @@ impl CanvasNode {
 
     pub fn recalc(&mut self) {
         self.image_buffer = self.draw();
+        self.image_changed = true;
+    }
+
+    fn draw_inner(&self) -> piet_svg::RenderContext {
+        let mut rc =
+            piet_svg::RenderContext::new(piet::kurbo::Size::new(self.width(), self.height()));
+        rc.clear(None, piet::Color::WHITE);
+        rc.save();
+        // TODO: Why is clipping in percent? I don't get it...
+        rc.clip(piet::kurbo::Rect::new(0.0, 0.0, 100.0, 100.0));
+        for shape in self.shapes.values_out() {
+            rc.stroke(shape.get_shape(), &piet::Color::BLACK, 1.0);
+        }
+        rc.restore();
+        rc
     }
 
     fn draw(&self) -> Vec<u8> {
         let mut rc =
             piet_svg::RenderContext::new(piet::kurbo::Size::new(self.width(), self.height()));
         rc.clear(None, piet::Color::WHITE);
+        rc.save();
+        // TODO: Why is clipping in percent? I don't get it...
+        rc.clip(piet::kurbo::Rect::new(0.0, 0.0, 100.0, 100.0));
         for shape in self.shapes.values_out() {
             rc.stroke(shape.get_shape(), &piet::Color::BLACK, 1.0);
         }
         let mut buffer: Vec<u8> = Vec::new();
         rc.write(&mut buffer).expect("Write worked");
+        println!("Drew new image");
         buffer
+    }
+
+    pub fn save(&self, path: &str) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut rc = self.draw_inner();
+        rc.write(file).unwrap();
     }
 }
 
@@ -47,6 +73,7 @@ impl Default for CanvasNode {
             height: InputPin::default(),
             shapes: InputPin::default(),
             image_buffer: Vec::new(),
+            image_changed: false,
         }
     }
 }
@@ -136,18 +163,35 @@ impl super::OutputNode<super::Nodes> for CanvasNode {
         scale: f32,
         snarl: &mut egui_snarl::Snarl<super::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
+        let changed = super::get_node_mut::<Self>(snarl, pin.id.node).image_changed;
         let uri = format!("bytes://canvas{}.svg", pin.id.node.0);
-        let image = egui::Image::from_bytes(
-            uri.to_owned(),
-            super::get_node_mut::<Self>(snarl, pin.id.node).draw(),
-        )
-        .max_width(200.0 * scale)
-        .shrink_to_fit()
-        .show_loading_spinner(true);
-        ui.add(image);
+        let width = super::get_node_mut::<Self>(snarl, pin.id.node).width();
+        let height = super::get_node_mut::<Self>(snarl, pin.id.node).height();
+        if changed {
+            ui.ctx().forget_image(&uri);
+        }
+        let image = {
+            if changed {
+                egui::Image::from_bytes(
+                    uri.to_owned(),
+                    super::get_node_mut::<Self>(snarl, pin.id.node)
+                        .image_buffer
+                        .clone(),
+                )
+                .show_loading_spinner(true)
+            } else {
+                egui::Image::from_uri(uri)
+            }
+        };
+        // TODO: Image is scaled weirdly, I don't get why :/
+        // At least clipping works properly-ish now...
+        ui.add(
+            image.fit_to_exact_size(egui::Vec2::new(width as f32 * scale, height as f32 * scale)),
+        );
 
-        // TODO: Bad for performance, but necessary to update the image. Would be better to somehow cache the image in the struct itself, so all inputs can refresh it on change
-        ui.ctx().forget_image(&uri);
+        if changed {
+            super::get_node_mut::<Self>(snarl, pin.id.node).image_changed = false;
+        }
         egui_snarl::ui::PinInfo::triangle()
     }
 

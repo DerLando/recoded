@@ -1,7 +1,9 @@
 use egui::Ui;
 use egui_snarl::{ui::PinInfo, OutPin};
 
-use super::{Node, NodeInfo};
+use crate::values::Values;
+
+use super::{Node, NodeInfo, Nodes};
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum ConstantValue {
@@ -64,23 +66,105 @@ impl ConstantValueNode {
             _ => self.value.value(),
         }
     }
+}
 
-    pub fn show_output(&mut self, ui: &mut Ui) -> PinInfo {
-        egui::ComboBox::from_label("Select one")
-            .selected_text(format!("{:?}", &mut self.value))
+impl super::NodeDowncast for ConstantValueNode {
+    fn try_downcast(from: &Nodes) -> Option<&Self> {
+        todo!()
+    }
+
+    fn try_downcast_mut(from: &mut Nodes) -> Option<&mut Self> {
+        match from {
+            Nodes::ConstantValueNode(node) => Some(node),
+            _ => None,
+        }
+    }
+}
+
+impl super::OutputNode<Nodes> for ConstantValueNode {
+    fn show_output(
+        pin: &OutPin,
+        ui: &mut Ui,
+        scale: f32,
+        snarl: &mut egui_snarl::Snarl<Nodes>,
+    ) -> PinInfo {
+        let response = egui::ComboBox::from_label("Select one")
+            .selected_text(format!(
+                "{:?}",
+                &mut super::get_node_mut::<Self>(snarl, pin.id.node).value
+            ))
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut self.value, ConstantValue::Pi, "Pi");
-                ui.selectable_value(&mut self.value, ConstantValue::Tau, "Tau");
-                ui.selectable_value(&mut self.value, ConstantValue::Phi, "Phi");
-                ui.selectable_value(&mut self.value, ConstantValue::Rho, "Rho");
-                ui.selectable_value(&mut self.value, ConstantValue::Custom, "Custom");
+                if ui
+                    .selectable_value(
+                        &mut super::get_node_mut::<Self>(snarl, pin.id.node).value,
+                        ConstantValue::Pi,
+                        "Pi",
+                    )
+                    .clicked()
+                {
+                    crate::solver::solve_starting_from(pin.id.node.into(), snarl)
+                };
+                if ui
+                    .selectable_value(
+                        &mut super::get_node_mut::<Self>(snarl, pin.id.node).value,
+                        ConstantValue::Tau,
+                        "Tau",
+                    )
+                    .clicked()
+                {
+                    crate::solver::solve_starting_from(pin.id.node.into(), snarl)
+                };
+
+                if ui
+                    .selectable_value(
+                        &mut super::get_node_mut::<Self>(snarl, pin.id.node).value,
+                        ConstantValue::Phi,
+                        "Phi",
+                    )
+                    .clicked()
+                {
+                    crate::solver::solve_starting_from(pin.id.node.into(), snarl)
+                };
+
+                if ui
+                    .selectable_value(
+                        &mut super::get_node_mut::<Self>(snarl, pin.id.node).value,
+                        ConstantValue::Rho,
+                        "Rho",
+                    )
+                    .clicked()
+                {
+                    crate::solver::solve_starting_from(pin.id.node.into(), snarl)
+                };
+
+                if ui
+                    .selectable_value(
+                        &mut super::get_node_mut::<Self>(snarl, pin.id.node).value,
+                        ConstantValue::Custom,
+                        "Custom",
+                    )
+                    .clicked()
+                {
+                    crate::solver::solve_starting_from(pin.id.node.into(), snarl)
+                };
             });
-        match self.value {
+        match &mut super::get_node_mut::<Self>(snarl, pin.id.node).value {
             ConstantValue::Custom => {
-                ui.add(egui::DragValue::new(&mut self.value_overwrite));
+                if ui
+                    .add(egui::DragValue::new(
+                        &mut super::get_node_mut::<Self>(snarl, pin.id.node).value_overwrite,
+                    ))
+                    .changed()
+                {
+                    crate::solver::solve_starting_from(pin.id.node.into(), snarl);
+                }
             }
             _ => (),
         }
         PinInfo::square().with_fill(crate::NUMBER_COLOR)
+    }
+
+    fn values_out(&self, _id: crate::pins::OutputPinId) -> crate::values::Values {
+        Values::Float(vec![self.number_out()])
     }
 }

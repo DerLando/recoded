@@ -30,6 +30,14 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         if ui.button("Delete").clicked() {
             snarl.remove_node(node);
         };
+        match &mut snarl[node] {
+            nodes::Nodes::Canvas(canvas) => {
+                if ui.button("Save").clicked() {
+                    canvas.save("out.svg");
+                }
+            }
+            _ => (),
+        }
     }
 
     fn show_input(
@@ -46,6 +54,9 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Circle(_) => nodes::circle::CircleNode::show_input(pin, ui, scale, snarl),
             nodes::Nodes::Canvas(_) => nodes::canvas::CanvasNode::show_input(pin, ui, scale, snarl),
+            nodes::Nodes::PointPolar(_) => {
+                nodes::point::PointPolarNode::show_input(pin, ui, scale, snarl)
+            }
         }
     }
 
@@ -57,7 +68,9 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
         snarl: &mut egui_snarl::Snarl<nodes::Nodes>,
     ) -> egui_snarl::ui::PinInfo {
         match &mut snarl[pin.id.node] {
-            nodes::Nodes::ConstantValueNode(ref mut node) => node.show_output(ui),
+            nodes::Nodes::ConstantValueNode(ref mut node) => {
+                nodes::constant_value::ConstantValueNode::show_output(pin, ui, scale, snarl)
+            }
             nodes::Nodes::Sink(_) => unreachable!(),
             nodes::Nodes::Range(_) => nodes::range::RangeNode::show_output(pin, ui, scale, snarl),
             nodes::Nodes::Point(_) => nodes::point::PointNode::show_output(pin, ui, scale, snarl),
@@ -66,6 +79,9 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             }
             nodes::Nodes::Canvas(_) => {
                 nodes::canvas::CanvasNode::show_output(pin, ui, scale, snarl)
+            }
+            nodes::Nodes::PointPolar(_) => {
+                nodes::point::PointPolarNode::show_output(pin, ui, scale, snarl)
             }
         }
     }
@@ -123,6 +139,13 @@ impl SnarlViewer<nodes::Nodes> for NodeGraphViewer {
             snarl.insert_node(
                 pos,
                 nodes::Nodes::Canvas(nodes::canvas::CanvasNode::default()),
+            );
+            ui.close_menu();
+        }
+        if ui.button("PointPolar").clicked() {
+            snarl.insert_node(
+                pos,
+                nodes::Nodes::PointPolar(nodes::point::PointPolarNode::default()),
             );
             ui.close_menu();
         }
